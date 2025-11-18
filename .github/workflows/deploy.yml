@@ -40,6 +40,21 @@ jobs:
       - name: Build
         run: cd web && pnpm run build
 
+      - name: Download latest firmware binaries
+        run: |
+          mkdir -p web/dist/firmware
+          cd web/dist/firmware
+          # Get the latest release tag
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/outputindustries/busroot-dau/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+
+          if [ -n "$LATEST_RELEASE" ]; then
+            echo "Downloading firmware from release: $LATEST_RELEASE"
+            curl -L -o busroot-dau-opta_m7.bin "https://github.com/outputindustries/busroot-dau/releases/download/$LATEST_RELEASE/busroot-dau-opta_m7.bin" || echo "M7 firmware not found"
+            curl -L -o busroot-dau-opta_m4.bin "https://github.com/outputindustries/busroot-dau/releases/download/$LATEST_RELEASE/busroot-dau-opta_m4.bin" || echo "M4 firmware not found"
+          else
+            echo "No releases found - firmware files will not be available"
+          fi
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
