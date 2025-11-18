@@ -5,7 +5,7 @@
 #include <ArduinoJson.h>
 
 // Version
-extern const int VERSION;
+extern const char* VERSION;
 
 // Communication mode enum
 enum CommunicationMode

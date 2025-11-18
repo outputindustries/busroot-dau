@@ -50,11 +50,31 @@ jobs:
           python -m pip install --upgrade pip
           pip install platformio
 
+      - name: Set firmware version
+        run: |
+          # Check if current commit has a tag
+          GIT_TAG=$(git describe --exact-match --tags 2>/dev/null || echo "")
+
+          if [ -n "$GIT_TAG" ]; then
+            # Use the tag as version
+            echo "FIRMWARE_VERSION=$GIT_TAG" >> $GITHUB_ENV
+            echo "Using tagged version: $GIT_TAG"
+          else
+            # Use dev- prefix with short commit SHA
+            GIT_SHA=$(git rev-parse --short HEAD)
+            echo "FIRMWARE_VERSION=dev-$GIT_SHA" >> $GITHUB_ENV
+            echo "Using development version: dev-$GIT_SHA"
+          fi
+
       - name: Build firmware for opta_m7
         run: pio run -e opta_m7
+        env:
+          FIRMWARE_VERSION: ${{ env.FIRMWARE_VERSION }}
 
       - name: Build firmware for opta_m4
         run: pio run -e opta_m4
+        env:
+          FIRMWARE_VERSION: ${{ env.FIRMWARE_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

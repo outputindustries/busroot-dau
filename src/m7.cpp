@@ -14,7 +14,11 @@
 #include "data_frame.h"
 #include "SDRAM.h"
 
-const int VERSION = 5;
+// VERSION is injected at compile-time from build flags
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION "dev-unknown"
+#endif
+const char* VERSION = FIRMWARE_VERSION;
 
 // Message buffer for failed MQTT publishes
 // Optimized sizes based on actual message content:
@@ -733,7 +737,7 @@ void loop()
     // MODBUS
     if (modbusDeviceCount == 0)
     {
-      snprintf(message, sizeof(message), "{\"ver\":%d,\"signal\":\"%s\",\"cb\":%u,\"c1\":%u,\"c2\":%u,\"c3\":%u,\"c4\":%u,\"c5\":%u,\"c6\":%u,\"sb\":%u,\"s1\":%u,\"s2\":%u,\"s3\":%u,\"s4\":%u,\"s5\":%u,\"s6\":%u,\"a7\":%u,\"a8\":%u}",
+      snprintf(message, sizeof(message), "{\"v\":\"%s\",\"signal\":\"%s\",\"cb\":%u,\"c1\":%u,\"c2\":%u,\"c3\":%u,\"c4\":%u,\"c5\":%u,\"c6\":%u,\"sb\":%u,\"s1\":%u,\"s2\":%u,\"s3\":%u,\"s4\":%u,\"s5\":%u,\"s6\":%u,\"a7\":%u,\"a8\":%u}",
                VERSION,
                rssi,
                dataFromM4.userButtonCount,
@@ -771,7 +775,7 @@ void loop()
       const float pf = getModbusRegister(i + 1, pfModbusAddress);
       const float kWh = getModbusRegister(i + 1, kWhModbusAddress);
 
-      snprintf(message, sizeof(message), "{\"ver\":%d,\"signal\":\"%s\",\"cb\":%u,\"c1\":%u,\"c2\":%u,\"c3\":%u,\"c4\":%u,\"c5\":%u,\"c6\":%u,\"sb\":%u,\"s1\":%u,\"s2\":%u,\"s3\":%u,\"s4\":%u,\"s5\":%u,\"s6\":%u,\"a7\":%u,\"a8\":%u,\"p1v%u\":%.4f,\"p2v%u\":%.4f,\"p3v%u\":%.4f,\"p1a%u\":%.4f,\"p2a%u\":%.4f,\"p3a%u\":%.4f,\"pf%u\":%.4f,\"kWh%u\":%.4f}",
+      snprintf(message, sizeof(message), "{\"v\":\"%s\",\"signal\":\"%s\",\"cb\":%u,\"c1\":%u,\"c2\":%u,\"c3\":%u,\"c4\":%u,\"c5\":%u,\"c6\":%u,\"sb\":%u,\"s1\":%u,\"s2\":%u,\"s3\":%u,\"s4\":%u,\"s5\":%u,\"s6\":%u,\"a7\":%u,\"a8\":%u,\"p1v%u\":%.4f,\"p2v%u\":%.4f,\"p3v%u\":%.4f,\"p1a%u\":%.4f,\"p2a%u\":%.4f,\"p3a%u\":%.4f,\"pf%u\":%.4f,\"kWh%u\":%.4f}",
                VERSION,
                rssi,
                dataFromM4.userButtonCount,

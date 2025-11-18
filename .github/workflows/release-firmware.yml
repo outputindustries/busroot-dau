@@ -48,20 +48,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install platformio
 
-      - name: Build firmware for opta_m7
-        run: pio run -e opta_m7
-
-      - name: Build firmware for opta_m4
-        run: pio run -e opta_m4
-
-      - name: Prepare release artifacts
-        run: |
-          mkdir -p release
-          cp .pio/build/opta_m7/firmware.bin release/busroot-dau-opta_m7.bin
-          cp .pio/build/opta_m7/firmware.elf release/busroot-dau-opta_m7.elf
-          cp .pio/build/opta_m4/firmware.bin release/busroot-dau-opta_m4.bin
-          cp .pio/build/opta_m4/firmware.elf release/busroot-dau-opta_m4.elf
-
       - name: Get version
         id: get_version
         run: |
@@ -70,6 +56,29 @@ jobs:
           else
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
+
+      - name: Set firmware version
+        run: |
+          echo "FIRMWARE_VERSION=${{ steps.get_version.outputs.version }}" >> $GITHUB_ENV
+          echo "Building firmware with version: ${{ steps.get_version.outputs.version }}"
+
+      - name: Build firmware for opta_m7
+        run: pio run -e opta_m7
+        env:
+          FIRMWARE_VERSION: ${{ env.FIRMWARE_VERSION }}
+
+      - name: Build firmware for opta_m4
+        run: pio run -e opta_m4
+        env:
+          FIRMWARE_VERSION: ${{ env.FIRMWARE_VERSION }}
+
+      - name: Prepare release artifacts
+        run: |
+          mkdir -p release
+          cp .pio/build/opta_m7/firmware.bin release/busroot-dau-opta_m7.bin
+          cp .pio/build/opta_m7/firmware.elf release/busroot-dau-opta_m7.elf
+          cp .pio/build/opta_m4/firmware.bin release/busroot-dau-opta_m4.bin
+          cp .pio/build/opta_m4/firmware.elf release/busroot-dau-opta_m4.elf
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
