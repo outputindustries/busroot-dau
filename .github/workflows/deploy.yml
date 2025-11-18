@@ -24,6 +24,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-platformio-${{ hashFiles('**/platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+
+      - name: Build firmware for opta_m7
+        run: pio run -e opta_m7
+
+      - name: Build firmware for opta_m4
+        run: pio run -e opta_m4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -37,23 +69,14 @@ jobs:
       - name: Install dependencies
         run: cd web && pnpm install
 
-      - name: Build
+      - name: Build web app
         run: cd web && pnpm run build
 
-      - name: Download latest firmware binaries
+      - name: Copy firmware binaries to web dist
         run: |
           mkdir -p web/dist/firmware
-          cd web/dist/firmware
-          # Get the latest release tag
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/outputindustries/busroot-dau/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-
-          if [ -n "$LATEST_RELEASE" ]; then
-            echo "Downloading firmware from release: $LATEST_RELEASE"
-            curl -L -o busroot-dau-opta_m7.bin "https://github.com/outputindustries/busroot-dau/releases/download/$LATEST_RELEASE/busroot-dau-opta_m7.bin" || echo "M7 firmware not found"
-            curl -L -o busroot-dau-opta_m4.bin "https://github.com/outputindustries/busroot-dau/releases/download/$LATEST_RELEASE/busroot-dau-opta_m4.bin" || echo "M4 firmware not found"
-          else
-            echo "No releases found - firmware files will not be available"
-          fi
+          cp .pio/build/opta_m7/firmware.bin web/dist/firmware/busroot-dau-opta_m7.bin
+          cp .pio/build/opta_m4/firmware.bin web/dist/firmware/busroot-dau-opta_m4.bin
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
