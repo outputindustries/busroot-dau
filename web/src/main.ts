@@ -122,7 +122,7 @@ async function main() {
 
   try {
     const blobM7 = await fetch(
-      "https://s3.eu-west-2.amazonaws.com/files.opind.co/firmware_m7.bin",
+      "https://github.com/outputindustries/busroot-dau/releases/latest/download/busroot-dau-opta_m7.bin",
       { cache: "no-store" }
     ).then((r) => {
       if (!r.ok)
@@ -132,7 +132,7 @@ async function main() {
       return r.blob();
     });
     const blobM4 = await fetch(
-      "https://s3.eu-west-2.amazonaws.com/files.opind.co/firmware_m4.bin",
+      "https://github.com/outputindustries/busroot-dau/releases/latest/download/busroot-dau-opta_m4.bin",
       { cache: "no-store" }
     ).then((r) => {
       if (!r.ok)
