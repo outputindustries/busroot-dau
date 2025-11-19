@@ -61,15 +61,14 @@ void showError(uint8_t errorCode)
   digitalWrite(LEDR, HIGH);
   digitalWrite(LEDG, LOW);
 
-  // Display error code on D0-D3
-  setDeviceState(errorCode);
-
   // Log to serial
   Serial.print("FATAL ERROR: ");
   Serial.print(getStateName(errorCode));
-  Serial.print(" (");
-  Serial.print(errorCode);
-  Serial.println(")");
+
+  digitalWrite(LED_D0, (errorCode & 0x08) ? HIGH : LOW); // Bit 0
+  digitalWrite(LED_D1, (errorCode & 0x04) ? HIGH : LOW); // Bit 1
+  digitalWrite(LED_D2, (errorCode & 0x02) ? HIGH : LOW); // Bit 2
+  digitalWrite(LED_D3, (errorCode & 0x01) ? HIGH : LOW); // Bit 3
 
   // Wait 5 seconds while kicking watchdog
   for (int i = 0; i < 5; i++)

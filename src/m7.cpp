@@ -18,7 +18,7 @@
 #ifndef FIRMWARE_VERSION
 #define FIRMWARE_VERSION "dev-unknown"
 #endif
-const char* VERSION = FIRMWARE_VERSION;
+const char *VERSION = FIRMWARE_VERSION;
 
 /*
  * Config Token Key Mapping:
@@ -171,13 +171,12 @@ float getModbusRegister(int id, int address)
 
 void setupWifi()
 {
+  setDeviceState(STATE_WIFI_CONNECTING);
 
   mbed::Watchdog::get_instance().kick();
 
   WiFi.disconnect();
   delay(5000);
-
-  setDeviceState(STATE_WIFI_CONNECTING);
 
   mbed::Watchdog::get_instance().kick();
 
@@ -304,6 +303,8 @@ void reconnect()
       Serial.print("failed. rc=");
       Serial.print(mqttClient->state());
       Serial.println(" trying again...");
+      showError(ERROR_MQTT_FAILED);
+      setDeviceState(STATE_MQTT_CONNECTING);
     }
 
     mqttAttempts++;
@@ -378,10 +379,13 @@ void setupNetworking()
   if (mqttClient)
   {
     Serial.println("=== MQTT Configuration ===");
-    if (communicationMode == ETHERNET) {
+    if (communicationMode == ETHERNET)
+    {
       Serial.print("Network: Ethernet - IP: ");
       Serial.println(Ethernet.localIP());
-    } else if (communicationMode == WIFI) {
+    }
+    else if (communicationMode == WIFI)
+    {
       Serial.print("Network: WiFi - IP: ");
       Serial.println(WiFi.localIP());
       Serial.print("RSSI: ");
@@ -405,7 +409,7 @@ void setupNetworking()
 
     mqttClient->setServer(mqttServer, mqttPort);
     mqttClient->setBufferSize(2560); // Increased from 2056 to add safety margin
-    mqttClient->setKeepAlive(15); // Keep connection alive with 15 second keepalive
+    mqttClient->setKeepAlive(15);    // Keep connection alive with 15 second keepalive
     reconnect();
   }
 }
@@ -497,8 +501,6 @@ bool attemptPublish(const char *topic, const char *message)
 
 void sendMessage(const char *topic, const char *message)
 {
-  setDeviceState(STATE_PUBLISHING);
-
   // Always output to serial
   Serial.println();
   Serial.println(topic);
@@ -514,8 +516,6 @@ void sendMessage(const char *topic, const char *message)
   {
     delay(500);
   }
-
-  setDeviceState(STATE_RUNNING);
 }
 
 void loop()
@@ -561,6 +561,8 @@ void loop()
   // Check if there are frames available in the buffer
   if (data_frame_buffer_sdram->count > 0)
   {
+    digitalWrite(LEDB, 1);
+    setDeviceState(STATE_PUBLISHING);
     // Get the tail position (oldest frame)
     unsigned int readIndex = data_frame_buffer_sdram->tail;
 
@@ -600,14 +602,13 @@ void loop()
     char topic[128] = {0};
     char message[2056] = {0};
 
-    digitalWrite(LEDB, 1);
     if (strlen(mqttTopicPrefix) > 0)
     {
-      snprintf(topic, sizeof(topic), "%s/busroot/v1/dau/%s", mqttTopicPrefix, deviceId);
+      snprintf(topic, sizeof(topic), "%s/busroot/v2/dau/%s", mqttTopicPrefix, deviceId);
     }
     else
     {
-      snprintf(topic, sizeof(topic), "busroot/v1/dau/%s", deviceId);
+      snprintf(topic, sizeof(topic), "busroot/v2/dau/%s", deviceId);
     }
 
     // MODBUS
@@ -692,7 +693,10 @@ void loop()
     memset(topic, 0, sizeof(topic));
     memset(message, 0, sizeof(message));
 
+    delay(100); // small delay to make LED change visible even on fast connections.
+
     digitalWrite(LEDB, 0);
+    setDeviceState(STATE_RUNNING);
   }
 
   if (mqttClient)
