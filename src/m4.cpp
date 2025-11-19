@@ -25,7 +25,11 @@ void setup()
   mbed::Watchdog::get_instance().start();
 
   SDRAM.begin(SDRAM_START_ADDRESS_4);
-  *send_frame_ready_flag = 0;
+
+  // Initialize circular buffer
+  data_frame_buffer_sdram->head = 0;
+  data_frame_buffer_sdram->tail = 0;
+  data_frame_buffer_sdram->count = 0;
 
   pinMode(LEDB, OUTPUT);
 
@@ -105,44 +109,51 @@ void loop()
 
   if (currentMillis - previousMillis >= sendInterval)
   {
-    // Invalidate cache before reading flag to see M7's acknowledgment
+    // Invalidate cache before reading buffer state
     invalidateSharedMemoryCache();
 
-    if (*send_frame_ready_flag == 0)
+    // Check if buffer is full
+    if (data_frame_buffer_sdram->count >= DATA_FRAME_BUFFER_SIZE)
     {
-      // Copy data directly to volatile SDRAM (field by field to avoid volatile assignment issues)
-      data_frame_send_sdram->userButtonCount = counter_BTN_USER;
-      data_frame_send_sdram->input1Count = counters[0];
-      data_frame_send_sdram->input2Count = counters[1];
-      data_frame_send_sdram->input3Count = counters[2];
-      data_frame_send_sdram->input4Count = counters[3];
-      data_frame_send_sdram->input5Count = counters[4];
-      data_frame_send_sdram->input6Count = counters[5];
-      data_frame_send_sdram->userButtonState = lastState_BTN_USER;
-      data_frame_send_sdram->input1State = lastStates[0];
-      data_frame_send_sdram->input2State = lastStates[1];
-      data_frame_send_sdram->input3State = lastStates[2];
-      data_frame_send_sdram->input4State = lastStates[3];
-      data_frame_send_sdram->input5State = lastStates[4];
-      data_frame_send_sdram->input6State = lastStates[5];
-      data_frame_send_sdram->input7Analog = analogs[0];
-      data_frame_send_sdram->input8Analog = analogs[1];
+      // Buffer is full - drop the oldest frame by moving tail forward
+      data_frame_buffer_sdram->tail = (data_frame_buffer_sdram->tail + 1) % DATA_FRAME_BUFFER_SIZE;
+      data_frame_buffer_sdram->count--;
+    }
 
-      // Clean cache to make writes visible to M7
-      cleanSharedMemoryCache();
+    // Get the current head position
+    unsigned int writeIndex = data_frame_buffer_sdram->head;
 
-      *send_frame_ready_flag = 1; // Signal M7 that data is ready
+    // Write data to buffer at head position
+    data_frame_buffer_sdram->frames[writeIndex].userButtonCount = counter_BTN_USER;
+    data_frame_buffer_sdram->frames[writeIndex].input1Count = counters[0];
+    data_frame_buffer_sdram->frames[writeIndex].input2Count = counters[1];
+    data_frame_buffer_sdram->frames[writeIndex].input3Count = counters[2];
+    data_frame_buffer_sdram->frames[writeIndex].input4Count = counters[3];
+    data_frame_buffer_sdram->frames[writeIndex].input5Count = counters[4];
+    data_frame_buffer_sdram->frames[writeIndex].input6Count = counters[5];
+    data_frame_buffer_sdram->frames[writeIndex].userButtonState = lastState_BTN_USER;
+    data_frame_buffer_sdram->frames[writeIndex].input1State = lastStates[0];
+    data_frame_buffer_sdram->frames[writeIndex].input2State = lastStates[1];
+    data_frame_buffer_sdram->frames[writeIndex].input3State = lastStates[2];
+    data_frame_buffer_sdram->frames[writeIndex].input4State = lastStates[3];
+    data_frame_buffer_sdram->frames[writeIndex].input5State = lastStates[4];
+    data_frame_buffer_sdram->frames[writeIndex].input6State = lastStates[5];
+    data_frame_buffer_sdram->frames[writeIndex].input7Analog = analogs[0];
+    data_frame_buffer_sdram->frames[writeIndex].input8Analog = analogs[1];
 
-      // Clean cache again to ensure flag write is visible
-      cleanSharedMemoryCache();
+    // Move head forward and increment count
+    data_frame_buffer_sdram->head = (data_frame_buffer_sdram->head + 1) % DATA_FRAME_BUFFER_SIZE;
+    data_frame_buffer_sdram->count++;
 
-      // Reset counters immediately - data is already safely in SDRAM
-      // New pulses will accumulate in fresh counters for next transmission
-      counter_BTN_USER = 0;
-      for (int i = 0; i < 8; i++)
-      {
-        counters[i] = 0;
-      }
+    // Clean cache to make writes visible to M7
+    cleanSharedMemoryCache();
+
+    // Reset counters immediately - data is already safely in SDRAM
+    // New pulses will accumulate in fresh counters for next transmission
+    counter_BTN_USER = 0;
+    for (int i = 0; i < 8; i++)
+    {
+      counters[i] = 0;
     }
 
     previousMillis = currentMillis;

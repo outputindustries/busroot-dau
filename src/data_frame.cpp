@@ -1,8 +1,7 @@
 #include "data_frame.h"
 
 const uint32_t SDRAM_START_ADDRESS_4 = ((uint32_t)0x38000000); // USING THE AHB SRAM4 DOMAIN SPACE
-const uint32_t SDRAM_ALLOCATION_PROTECTED_BUFFER_SIZE = 10000;  
+const uint32_t SDRAM_ALLOCATION_PROTECTED_BUFFER_SIZE = sizeof(DATA_FRAME_BUFFER) + 1000; // Buffer size + extra margin
 
-// Pointers to memory locations
-volatile byte *send_frame_ready_flag = (volatile byte *)SDRAM_START_ADDRESS_4;
-volatile DATA_FRAME_SEND *data_frame_send_sdram = (volatile DATA_FRAME_SEND *)(SDRAM_START_ADDRESS_4 + (2 * sizeof(byte)));
+// Pointer to circular buffer in SDRAM
+volatile DATA_FRAME_BUFFER *data_frame_buffer_sdram = (volatile DATA_FRAME_BUFFER *)SDRAM_START_ADDRESS_4;

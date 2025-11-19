@@ -1,6 +1,6 @@
 # Busroot DAU Firmware
 
-Industrial-grade Data Acquisition Unit (DAU) firmware for Arduino Opta, featuring dual-core architecture with robust input handling, MQTT communication, and extensive message buffering.
+Industrial-grade Data Acquisition Unit (DAU) firmware for Arduino Opta, featuring dual-core architecture with robust input handling, MQTT communication, and 1000-frame circular buffer for maximum reliability.
 
 ## Features
 
@@ -22,12 +22,12 @@ Industrial-grade Data Acquisition Unit (DAU) firmware for Arduino Opta, featurin
 - Valid JSON message formatting
 
 ### Reliability Features
-- **600-message buffer** (50 minutes @ 5s intervals)
+- **1000-frame circular buffer** on M4 core (83 minutes @ 5s intervals)
 - **Watchdog protection** on both cores
-- **Automatic retry** for failed messages
-- **Volatile memory** for safe multi-core communication
+- **Lock-free circular buffer** for safe dual-core communication
 - **Race-condition-free** counter implementation
 - **Configuration persistence** in flash memory
+- **Automatic MQTT reconnection** on connection failure
 
 ## Quick Start
 
@@ -94,23 +94,24 @@ busroot-dau/
 - Debounces all inputs with 50ms delay
 - Counts falling edges on digital inputs
 - Reads analog values (12-bit resolution)
-- Sends data to M7 every 5 seconds via SDRAM
+- Writes data frames to circular buffer in SDRAM every 5 seconds
+- Manages buffer overflow by dropping oldest frames
 - Protected by watchdog timer
 
 ### M7 Core (Communication)
-- Receives sensor data from M4
+- Reads sensor data from M4 circular buffer (FIFO order)
 - Manages WiFi/Ethernet/Blues connectivity
-- Publishes to MQTT broker
+- Publishes to MQTT broker (attempts reconnection on failure)
 - Reads Modbus energy meters (optional)
-- Buffers failed messages (600 messages)
 - Configuration editor via serial
 - Protected by watchdog timer
 
 ### Inter-Core Communication
-- Shared SDRAM memory region
-- Simple flag-based handshake protocol
-- Volatile pointers for memory safety
-- No race conditions or data loss
+- **1000-frame circular buffer** in shared SDRAM (83 minutes @ 5s intervals)
+- **Lock-free FIFO queue**: M4 writes to head, M7 reads from tail
+- **Automatic overflow handling**: Oldest frames dropped when buffer fills
+- **Cache coherent**: Proper D-Cache management for dual-core safety
+- **No data loss during normal operation**: Massive buffer handles extended network outages
 
 ## MQTT Message Format
 
@@ -161,13 +162,18 @@ Published to: `busroot/v1/dau/{deviceId}`
 ## Memory Usage
 
 ### M7 Core
-- RAM: 414 KB / 523 KB (79%)
-- Flash: 488 KB / 786 KB (62%)
-- Buffer: 600 messages (329 KB)
+- RAM: 83 KB / 523 KB (16%) - Minimal footprint!
+- Flash: 487 KB / 786 KB (62%)
 
 ### M4 Core
 - RAM: 43 KB / 294 KB (15%)
-- Flash: 84 KB / 1 MB (8%)
+- Flash: 81 KB / 1 MB (8%)
+
+### Shared SDRAM (Inter-core Buffer)
+- Circular buffer: 1000 frames (~64 KB)
+- Located at 0x38000000 (AHB SRAM4 domain)
+- Uses entire 64 KB AHB SRAM4 region for maximum reliability
+- **All buffering handled on M4 side** for simplicity and reliability
 
 ## Configuration
 
@@ -248,6 +254,6 @@ pio run
 - **Framework**: Arduino (Mbed OS)
 - **Send Interval**: 5 seconds (configurable)
 - **Debounce Delay**: 50ms (configurable)
-- **Buffer Capacity**: 600 messages (50 minutes)
+- **Buffer Capacity**: 1000 frames (83 minutes @ 5s intervals)
 - **Serial Baud**: 19200
 - **Modbus Baud**: 19200 (8N1)

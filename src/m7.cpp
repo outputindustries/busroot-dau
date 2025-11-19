@@ -20,29 +20,6 @@
 #endif
 const char* VERSION = FIRMWARE_VERSION;
 
-// Message buffer for failed MQTT publishes
-// Optimized sizes based on actual message content:
-// - Topic: "busroot/v1/dau/XXXXXXXXXXXX" = max 29 bytes -> allocated 32
-// - Message without Modbus: ~250 bytes max
-// - Message with Modbus: ~390 bytes max -> allocated 512 for safety
-struct BufferedMessage
-{
-  char topic[32];    // Was 128, actual max ~29 bytes
-  char message[512]; // Was 2056, actual max ~390 bytes
-  unsigned long timestamp;
-  bool occupied;
-};
-
-// Maximized buffer: 600 messages = 50 minutes at 5-second intervals
-// Per message: 32 + 512 + 4 + 1 = 549 bytes
-// Total buffer RAM: ~329 KB
-// Total expected RAM usage: ~412 KB / 523 KB (78.7%)
-const int MESSAGE_BUFFER_SIZE = 600;
-BufferedMessage messageBuffer[MESSAGE_BUFFER_SIZE];
-int bufferHead = 0;  // Next position to write
-int bufferTail = 0;  // Next position to read
-int bufferCount = 0; // Number of messages in buffer
-
 /*
  * Config Token Key Mapping:
  * v   = version
@@ -155,89 +132,6 @@ void setEthernetMacAddress()
 
   Serial.print("Ethernet MAC: ");
   Serial.println(deviceId);
-}
-
-bool addToBuffer(const char *topic, const char *message)
-{
-  if (bufferCount >= MESSAGE_BUFFER_SIZE)
-  {
-    Serial.println("Buffer full! Dropping oldest message");
-    // Drop oldest message to make room
-    bufferTail = (bufferTail + 1) % MESSAGE_BUFFER_SIZE;
-    bufferCount--;
-  }
-
-  // Add new message at head
-  strncpy(messageBuffer[bufferHead].topic, topic, sizeof(messageBuffer[bufferHead].topic) - 1);
-  messageBuffer[bufferHead].topic[sizeof(messageBuffer[bufferHead].topic) - 1] = '\0';
-
-  strncpy(messageBuffer[bufferHead].message, message, sizeof(messageBuffer[bufferHead].message) - 1);
-  messageBuffer[bufferHead].message[sizeof(messageBuffer[bufferHead].message) - 1] = '\0';
-
-  messageBuffer[bufferHead].timestamp = millis();
-  messageBuffer[bufferHead].occupied = true;
-
-  bufferHead = (bufferHead + 1) % MESSAGE_BUFFER_SIZE;
-  bufferCount++;
-
-  Serial.print("Added to buffer. Buffer count: ");
-  Serial.println(bufferCount);
-
-  return true;
-}
-
-bool sendFromBuffer()
-{
-  if (bufferCount == 0)
-  {
-    return false; // No messages to send
-  }
-
-  if (serialOnlyMode)
-  {
-    // In serial-only mode, just discard buffered messages
-    bufferTail = (bufferTail + 1) % MESSAGE_BUFFER_SIZE;
-    bufferCount--;
-    return true;
-  }
-
-  if (!mqttClient || !mqttClient->connected())
-  {
-    return false; // Can't send, MQTT not ready
-  }
-
-  // Try to send oldest message
-  BufferedMessage *msg = &messageBuffer[bufferTail];
-
-  if (!msg->occupied)
-  {
-    // Skip empty slot
-    bufferTail = (bufferTail + 1) % MESSAGE_BUFFER_SIZE;
-    bufferCount--;
-    return false;
-  }
-
-  Serial.print("Attempting to send buffered message: ");
-  Serial.println(msg->topic);
-
-  bool success = mqttClient->publish(msg->topic, msg->message);
-
-  if (success)
-  {
-    // Success! Remove from buffer
-    msg->occupied = false;
-    bufferTail = (bufferTail + 1) % MESSAGE_BUFFER_SIZE;
-    bufferCount--;
-
-    Serial.print("Sent buffered message. Remaining: ");
-    Serial.println(bufferCount);
-    return true;
-  }
-  else
-  {
-    Serial.println("Failed to send buffered message, will retry later");
-    return false;
-  }
 }
 
 float getModbusRegister(int id, int address)
@@ -604,49 +498,21 @@ bool attemptPublish(const char *topic, const char *message)
 void sendMessage(const char *topic, const char *message)
 {
   setDeviceState(STATE_PUBLISHING);
+
   // Always output to serial
   Serial.println();
   Serial.println(topic);
   Serial.println(message);
   Serial.println();
 
-  if (serialOnlyMode)
+  if (!serialOnlyMode)
   {
-    delay(500);
-    return;
+    // Attempt to publish the message
+    attemptPublish(topic, message);
   }
   else
   {
-
-    // Attempt to publish the new message
-    if (attemptPublish(topic, message))
-    {
-      // Connection is working - try to flush buffer
-      if (bufferCount > 0)
-      {
-        Serial.print("Flushing buffer (");
-        Serial.print(bufferCount);
-        Serial.println(" messages)...");
-
-        // Try to send up to 5 buffered messages while connection is good
-        for (int i = 0; i < 5 && bufferCount > 0; i++)
-        {
-          if (!sendFromBuffer())
-          {
-            break; // Stop if a send fails
-          }
-          mbed::Watchdog::get_instance().kick();
-        }
-      }
-    }
-    else
-    {
-      // Failed to send - add to buffer for retry
-      Serial.println("Failed to send message - adding to buffer");
-      
-      // Temporarily disable buffer.
-      //addToBuffer(topic, message);
-    }
+    delay(500);
   }
 
   setDeviceState(STATE_RUNNING);
@@ -689,36 +555,39 @@ void loop()
   }
 
   // void receiveDataFromM4()
-  // Invalidate cache before reading flag to ensure we see fresh data
+  // Invalidate cache before reading buffer to ensure we see fresh data
   invalidateSharedMemoryCache();
 
-  if (*send_frame_ready_flag == 1)
+  // Check if there are frames available in the buffer
+  if (data_frame_buffer_sdram->count > 0)
   {
-    // Invalidate cache again to ensure we read fresh data
-    invalidateSharedMemoryCache();
+    // Get the tail position (oldest frame)
+    unsigned int readIndex = data_frame_buffer_sdram->tail;
 
     // Copy data from volatile SDRAM (field by field to avoid volatile assignment issues)
     DATA_FRAME_SEND dataFromM4;
-    dataFromM4.userButtonCount = data_frame_send_sdram->userButtonCount;
-    dataFromM4.input1Count = data_frame_send_sdram->input1Count;
-    dataFromM4.input2Count = data_frame_send_sdram->input2Count;
-    dataFromM4.input3Count = data_frame_send_sdram->input3Count;
-    dataFromM4.input4Count = data_frame_send_sdram->input4Count;
-    dataFromM4.input5Count = data_frame_send_sdram->input5Count;
-    dataFromM4.input6Count = data_frame_send_sdram->input6Count;
-    dataFromM4.userButtonState = data_frame_send_sdram->userButtonState;
-    dataFromM4.input1State = data_frame_send_sdram->input1State;
-    dataFromM4.input2State = data_frame_send_sdram->input2State;
-    dataFromM4.input3State = data_frame_send_sdram->input3State;
-    dataFromM4.input4State = data_frame_send_sdram->input4State;
-    dataFromM4.input5State = data_frame_send_sdram->input5State;
-    dataFromM4.input6State = data_frame_send_sdram->input6State;
-    dataFromM4.input7Analog = data_frame_send_sdram->input7Analog;
-    dataFromM4.input8Analog = data_frame_send_sdram->input8Analog;
+    dataFromM4.userButtonCount = data_frame_buffer_sdram->frames[readIndex].userButtonCount;
+    dataFromM4.input1Count = data_frame_buffer_sdram->frames[readIndex].input1Count;
+    dataFromM4.input2Count = data_frame_buffer_sdram->frames[readIndex].input2Count;
+    dataFromM4.input3Count = data_frame_buffer_sdram->frames[readIndex].input3Count;
+    dataFromM4.input4Count = data_frame_buffer_sdram->frames[readIndex].input4Count;
+    dataFromM4.input5Count = data_frame_buffer_sdram->frames[readIndex].input5Count;
+    dataFromM4.input6Count = data_frame_buffer_sdram->frames[readIndex].input6Count;
+    dataFromM4.userButtonState = data_frame_buffer_sdram->frames[readIndex].userButtonState;
+    dataFromM4.input1State = data_frame_buffer_sdram->frames[readIndex].input1State;
+    dataFromM4.input2State = data_frame_buffer_sdram->frames[readIndex].input2State;
+    dataFromM4.input3State = data_frame_buffer_sdram->frames[readIndex].input3State;
+    dataFromM4.input4State = data_frame_buffer_sdram->frames[readIndex].input4State;
+    dataFromM4.input5State = data_frame_buffer_sdram->frames[readIndex].input5State;
+    dataFromM4.input6State = data_frame_buffer_sdram->frames[readIndex].input6State;
+    dataFromM4.input7Analog = data_frame_buffer_sdram->frames[readIndex].input7Analog;
+    dataFromM4.input8Analog = data_frame_buffer_sdram->frames[readIndex].input8Analog;
 
-    *send_frame_ready_flag = 0; // Clear flag to let M4 know data has been read
+    // Move tail forward and decrement count
+    data_frame_buffer_sdram->tail = (data_frame_buffer_sdram->tail + 1) % DATA_FRAME_BUFFER_SIZE;
+    data_frame_buffer_sdram->count--;
 
-    // Clean cache to make flag clear visible to M4
+    // Clean cache to make buffer updates visible to M4
     cleanSharedMemoryCache();
 
     // Get Wifi strength
@@ -822,13 +691,6 @@ void loop()
   if (mqttClient)
   {
     mqttClient->loop();
-  }
-
-  // Try to send buffered messages if any exist
-  // Attempt to send one message per loop iteration to avoid blocking
-  if (bufferCount > 0)
-  {
-    sendFromBuffer();
   }
 
   mbed::Watchdog::get_instance().kick();
