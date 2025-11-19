@@ -22,12 +22,12 @@ Industrial-grade Data Acquisition Unit (DAU) firmware for Arduino Opta, featurin
 - Valid JSON message formatting
 
 ### Reliability Features
-- ✅ **600-message buffer** (50 minutes @ 5s intervals)
-- ✅ **Watchdog protection** on both cores
-- ✅ **Automatic retry** for failed messages
-- ✅ **Volatile memory** for safe multi-core communication
-- ✅ **Race-condition-free** counter implementation
-- ✅ **Configuration persistence** in flash memory
+- **600-message buffer** (50 minutes @ 5s intervals)
+- **Watchdog protection** on both cores
+- **Automatic retry** for failed messages
+- **Volatile memory** for safe multi-core communication
+- **Race-condition-free** counter implementation
+- **Configuration persistence** in flash memory
 
 ## Quick Start
 
@@ -66,23 +66,6 @@ pio run -e opta_m4 -t upload
    - Network credentials
    - MQTT broker settings
    - Modbus configuration (optional)
-
-## Web Interface
-
-A complete web-based firmware distribution interface is included:
-
-```bash
-cd web
-python3 -m http.server 8000
-```
-
-Open `http://localhost:8000` for:
-- Firmware uploads
-- Installation instructions
-- Device configuration guide
-- Technical specifications
-
-See [web/README.md](web/README.md) for hosting options.
 
 ## Project Structure
 
@@ -190,26 +173,6 @@ Published to: `busroot/v1/dau/{deviceId}`
 
 Configuration is stored in flash memory and persists across reboots.
 
-### Example Configuration
-```
-Communication Mode: WIFI
-Device ID: A1B2C3D4E5F6
-WiFi SSID: MyNetwork
-WiFi Password: ********
-MQTT Server: mqtt.example.com
-MQTT Port: 1883
-MQTT Username: device01
-MQTT Password: ********
-MQTT Client ID: opta-a1b2c3
-Modbus Device Count: 1
-```
-
-### Serial-Only Mode
-If no configuration is found, device enters serial-only mode:
-- Prints all data to serial console
-- No network communication
-- Useful for debugging
-
 ## Troubleshooting
 
 ### Device won't connect to WiFi
@@ -288,11 +251,3 @@ pio run
 - **Buffer Capacity**: 600 messages (50 minutes)
 - **Serial Baud**: 19200
 - **Modbus Baud**: 19200 (8N1)
-
-## License
-
-Copyright (c) 2025 Busroot
-
-## Support
-
-For issues and questions, please use the project issue tracker or contact support.
