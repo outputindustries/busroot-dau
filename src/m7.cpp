@@ -601,7 +601,14 @@ void loop()
     char message[2056] = {0};
 
     digitalWrite(LEDB, 1);
-    snprintf(topic, sizeof(topic), "busroot/v1/dau/%s", deviceId);
+    if (strlen(mqttTopicPrefix) > 0)
+    {
+      snprintf(topic, sizeof(topic), "%s/busroot/v1/dau/%s", mqttTopicPrefix, deviceId);
+    }
+    else
+    {
+      snprintf(topic, sizeof(topic), "busroot/v1/dau/%s", deviceId);
+    }
 
     // MODBUS
     if (modbusDeviceCount == 0)

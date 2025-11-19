@@ -13,6 +13,7 @@ int mqttPort = 1883;
 char mqttUsername[128] = "";
 char mqttPassword[128] = "";
 char mqttClientId[128] = "";
+char mqttTopicPrefix[128] = "";
 int modbusDeviceCount = 0;
 int modbusRegisterStyle = 0;
 
@@ -69,6 +70,7 @@ void saveConfigTokenToMemory()
   saveDoc["wpw"] = wifiPassword;
   saveDoc["did"] = deviceId;
   saveDoc["mci"] = mqttClientId;
+  saveDoc["mtp"] = mqttTopicPrefix;
   saveDoc["mpo"] = mqttPort;
   saveDoc["mdc"] = modbusDeviceCount;
 
@@ -177,6 +179,15 @@ void applyConfigToken()
     strcpy(mqttClientId, configDoc["mci"]);
   }
 
+  if (configDoc.containsKey("mtp"))
+  {
+    strcpy(mqttTopicPrefix, configDoc["mtp"]);
+  }
+  else
+  {
+    strcpy(mqttTopicPrefix, "");
+  }
+
   if (configDoc.containsKey("mpo"))
   {
     mqttPort = configDoc["mpo"];
@@ -250,6 +261,9 @@ void printConfig()
   Serial.print("mqttClientId: ");
   Serial.println(mqttClientId);
 
+  Serial.print("mqttTopicPrefix: ");
+  Serial.println(mqttTopicPrefix);
+
   Serial.print("p1VoltsModbusAddress: ");
   Serial.println(p1VoltsModbusAddress);
 
@@ -293,10 +307,11 @@ void showConfigPrompt()
       "MQTT Username",
       "MQTT Password",
       "MQTT Client ID",
+      "MQTT Topic Prefix",
       "Modbus Device Count",
       "Modbus Register Style (0 or 1)"};
 
-  if (currentConfigField >= 11)
+  if (currentConfigField >= 12)
   {
     // Done editing
     Serial.println();
@@ -346,9 +361,12 @@ void showConfigPrompt()
       Serial.print(mqttClientId);
       break;
     case 9:
-      Serial.print(modbusDeviceCount);
+      Serial.print(mqttTopicPrefix);
       break;
     case 10:
+      Serial.print(modbusDeviceCount);
+      break;
+    case 11:
       Serial.print(modbusRegisterStyle);
       break;
     }
@@ -409,9 +427,12 @@ void processConfigInput(char c)
         strncpy(mqttClientId, inputBuffer, sizeof(mqttClientId) - 1);
         break;
       case 9:
-        modbusDeviceCount = atoi(inputBuffer);
+        strncpy(mqttTopicPrefix, inputBuffer, sizeof(mqttTopicPrefix) - 1);
         break;
       case 10:
+        modbusDeviceCount = atoi(inputBuffer);
+        break;
+      case 11:
         modbusRegisterStyle = atoi(inputBuffer);
         break;
       }

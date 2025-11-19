@@ -75,11 +75,11 @@
           <div id="mqtt-settings">
             <p>
               <label for="mqtt-server">MQTT Server</label>
-              <input id="mqtt-server" type="text" value="eu-west-2-2.busroot.com" style="width:100%" />
+              <input id="mqtt-server" type="text" value="" style="width:100%" />
             </p>
             <p>
               <label for="mqtt-port">MQTT Port</label>
-              <input id="mqtt-port" type="number" value="1885" style="width:100%" />
+              <input id="mqtt-port" type="number" value="1883" style="width:100%" />
             </p>
             <p>
               <label for="mqtt-username">MQTT Username</label>
@@ -92,6 +92,11 @@
             <p>
               <label for="mqtt-client-id">MQTT Client ID</label>
               <input id="mqtt-client-id" type="text" value="" style="width:100%" />
+            </p>
+            <p>
+              <label for="mqtt-topic-prefix">MQTT Topic Prefix (optional)</label>
+              <input id="mqtt-topic-prefix" type="text" value="" placeholder="Leave empty for no prefix" style="width:100%" />
+              <small>MQTT topic will be: <code>{prefix + /}busroot/v1/dau/{deviceId}</code></small>
             </p>
           </div>
           <hr/><br />

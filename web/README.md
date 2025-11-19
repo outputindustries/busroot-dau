@@ -22,8 +22,8 @@ All form fields can be pre-filled using URL query parameters. This is useful for
 | `communication-mode` | Communication method | `WIFI`, `ETHERNET`, `BLUES`, or `NONE` |
 | `wifi-ssid` | WiFi network name | `MyNetwork` |
 | `wifi-password` | WiFi password | `MyPassword123` |
-| `mqtt-server` | MQTT broker address | `eu-west-2-2.busroot.com` |
-| `mqtt-port` | MQTT broker port | `1885` |
+| `mqtt-server` | MQTT broker address | `mqtt.example.com` |
+| `mqtt-port` | MQTT broker port | `1883` |
 | `mqtt-username` | MQTT username | `device-user` |
 | `mqtt-password` | MQTT password | `secretpass` |
 | `mqtt-client-id` | MQTT client ID | `opta-001/12345` |
@@ -35,7 +35,7 @@ All form fields can be pre-filled using URL query parameters. This is useful for
 #### WiFi Configuration
 
 ```
-http://localhost:3000/?device-id=opta-warehouse-01&communication-mode=WIFI&wifi-ssid=WarehouseNetwork&wifi-password=SecurePass123&mqtt-server=eu-west-2-2.busroot.com&mqtt-port=1885&mqtt-username=opta-warehouse-01&mqtt-password=mqttpass123&modbus-device-name=RS%20PRO%20-%20236-929X&modbus-device-count=1
+http://localhost:3000/?device-id=opta-warehouse-01&communication-mode=WIFI&wifi-ssid=WarehouseNetwork&wifi-password=SecurePass123&mqtt-server=mqtt.example.com&mqtt-port=1883&mqtt-username=opta-warehouse-01&mqtt-password=mqttpass123&modbus-device-name=RS%20PRO%20-%20236-929X&modbus-device-count=1
 ```
 
 #### Ethernet Configuration
@@ -47,7 +47,7 @@ http://localhost:3000/?device-id=opta-factory-02&communication-mode=ETHERNET&mqt
 #### Blues Wireless Configuration
 
 ```
-http://localhost:3000/?device-id=opta-remote-03&communication-mode=BLUES&mqtt-server=eu-west-2-2.busroot.com&mqtt-port=1885&mqtt-username=opta-remote-03&mqtt-password=remotepass789&modbus-device-name=RS%20PRO%20-%20236-929X&modbus-device-count=1
+http://localhost:3000/?device-id=opta-remote-03&communication-mode=BLUES&mqtt-server=mqtt.example.com&mqtt-port=1883&mqtt-username=opta-remote-03&mqtt-password=remotepass789&modbus-device-name=RS%20PRO%20-%20236-929X&modbus-device-count=1
 ```
 
 #### No Communication Mode (Local Only)
@@ -61,8 +61,8 @@ http://localhost:3000/?device-id=opta-standalone&communication-mode=NONE&modbus-
 - URL encode special characters (spaces become `%20`, etc.)
 - Parameters are optional - any missing values will use defaults or remain empty
 - MQTT Username defaults to Device ID if not specified
-- MQTT Server defaults to `eu-west-2-2.busroot.com` if not specified
-- MQTT Port defaults to `1885` if not specified
+- MQTT Server defaults to `mqtt.example.com` if not specified
+- MQTT Port defaults to `1883` if not specified
 - WiFi settings are only shown when Communication Mode is `WIFI`
 - MQTT settings are hidden when Communication Mode is `NONE`
 

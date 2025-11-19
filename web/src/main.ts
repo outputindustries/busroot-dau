@@ -26,6 +26,7 @@ let mqttPortInput;
 let mqttUsernameInput;
 let mqttPasswordInput;
 let mqttClientIdInput;
+let mqttTopicPrefixInput;
 let configFieldsDiv;
 let wifiSettingsDiv;
 let mqttSettingsDiv;
@@ -62,6 +63,7 @@ async function main() {
   mqttUsernameInput = document.querySelector("#mqtt-username");
   mqttPasswordInput = document.querySelector("#mqtt-password");
   mqttClientIdInput = document.querySelector("#mqtt-client-id");
+  mqttTopicPrefixInput = document.querySelector("#mqtt-topic-prefix");
   configFieldsDiv = document.querySelector("#config-fields");
   wifiSettingsDiv = document.querySelector("#wifi-settings");
   mqttSettingsDiv = document.querySelector("#mqtt-settings");
@@ -107,6 +109,9 @@ async function main() {
   }
   if (urlParams.has("mqtt-client-id")) {
     mqttClientIdInput.value = urlParams.get("mqtt-client-id");
+  }
+  if (urlParams.has("mqtt-topic-prefix")) {
+    mqttTopicPrefixInput.value = urlParams.get("mqtt-topic-prefix");
   }
   if (urlParams.has("modbus-device-count")) {
     modbusDeviceCountInput.value = urlParams.get("modbus-device-count");
@@ -270,6 +275,7 @@ async function uploadFirmware() {
       mqttUsername: mqttUsernameInput.value,
       mqttPassword: mqttPasswordInput.value,
       mqttClientId: mqttClientIdInput.value,
+      mqttTopicPrefix: mqttTopicPrefixInput.value,
       modbusDeviceAddresses: modbusDevice?.addresses,
       modbusDeviceCount: parseInt(modbusDeviceCountInput.value),
       modbusRegisterStyle: modbusDevice?.registerStyle

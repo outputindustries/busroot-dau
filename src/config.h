@@ -35,6 +35,7 @@ extern int mqttPort;
 extern char mqttUsername[128];
 extern char mqttPassword[128];
 extern char mqttClientId[128];
+extern char mqttTopicPrefix[128];
 extern int modbusDeviceCount;
 extern int modbusRegisterStyle;
 

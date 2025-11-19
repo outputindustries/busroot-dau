@@ -14,6 +14,7 @@ interface DauConfig {
   mun: string;
   mpw: string;
   mci: string;
+  mtp?: string;
   mda: ModbusDeviceAddresses;
   mdc: number;
   mrs: 0 | 1;
@@ -27,6 +28,7 @@ interface DauTokenInputs {
   mqttUsername?: string;
   mqttPassword?: string;
   mqttClientId?: string;
+  mqttTopicPrefix?: string;
   wifiSsid?: string;
   wifiPassword?: string;
   modbusDeviceAddresses: ModbusDeviceAddresses
@@ -39,8 +41,8 @@ export function generateDauConfig(tokenInputs: DauTokenInputs) {
     v: VERSION,
     did: tokenInputs.deviceId,
     com: tokenInputs.communicationMode,
-    msv: tokenInputs.mqttServer || "eu-west-2-2.busroot.com",
-    mpo: tokenInputs.mqttPort || 1885,
+    msv: tokenInputs.mqttServer || "mqtt.example.com",
+    mpo: tokenInputs.mqttPort || 1883,
     mun: tokenInputs.mqttUsername || tokenInputs.deviceId,
     mpw: tokenInputs.mqttPassword || "",
     mci: tokenInputs.mqttClientId || (tokenInputs.deviceId + "/" + Date.now().toString().substring(5)), // everything after slash is ignored by Busroot, but overall Client ID needs to be unique for MQTT
@@ -52,6 +54,10 @@ export function generateDauConfig(tokenInputs: DauTokenInputs) {
   if (tokenInputs.communicationMode === "WIFI") {
     config.wid = tokenInputs.wifiSsid;
     config.wpw = tokenInputs.wifiPassword;
+  }
+
+  if (tokenInputs.mqttTopicPrefix && tokenInputs.mqttTopicPrefix.trim() !== "") {
+    config.mtp = tokenInputs.mqttTopicPrefix.trim();
   }
 
   return config;
