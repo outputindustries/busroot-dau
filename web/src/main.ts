@@ -6,6 +6,7 @@ declare global {
     dfu: any;
     dfuse: any;
   }
+  const __FIRMWARE_VERSION__: string;
 }
 
 window.dfu = window.dfu || {};
@@ -71,6 +72,12 @@ async function main() {
   modbusDeviceCountInput = document.querySelector(
     "#modbus-device-count"
   ) as HTMLSelectElement;
+
+  // Display firmware version
+  const firmwareVersionElement = document.querySelector("#firmware-version");
+  if (firmwareVersionElement) {
+    firmwareVersionElement.textContent = __FIRMWARE_VERSION__;
+  }
 
   var urlParams = new URLSearchParams(window.location.search);
 

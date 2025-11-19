@@ -91,6 +91,8 @@ jobs:
 
       - name: Build web app
         run: cd web && pnpm run build
+        env:
+          FIRMWARE_VERSION: ${{ env.FIRMWARE_VERSION }}
 
       - name: Copy firmware binaries to web dist
         run: |
