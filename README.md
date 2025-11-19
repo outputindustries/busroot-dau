@@ -77,7 +77,7 @@ python3 -m http.server 8000
 ```
 
 Open `http://localhost:8000` for:
-- Firmware downloads
+- Firmware uploads
 - Installation instructions
 - Device configuration guide
 - Technical specifications

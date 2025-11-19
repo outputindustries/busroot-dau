@@ -28,7 +28,7 @@
             ends with 'Bootloader').
           </li>
           <li>Fill in device details.</li>
-          <li>Press 'Download Busroot Firmware' button.</li>
+          <li>Press 'Upload Busroot Firmware' button.</li>
         </ol>
       </small>
       <br/>
@@ -40,76 +40,86 @@
       <br />
       <form>
         <p>
-          <label for="device-id">Device ID</label>
-          <input id="device-id" type="text" value="" style="width:100%" />
-        </p>
-        <hr/><br />
-        <p>
-          <label for="communication-mode">Communication Mode</label>
-          <select id="communication-mode" style="width:100%">
-            <option value="WIFI">WiFi</option>
-            <option value="ETHERNET">Ethernet</option>
-            <option value="BLUES">Blues Wireless for Opta</option>
-            <option value="NONE">None</option>
+          <label for="config-method">Configuration Method</label>
+          <select id="config-method" style="width:100%">
+            <option value="serial">Configure via serial interface (will retain any existing config)</option>
+            <option value="upload">Configure now and upload with firmware</option>
           </select>
         </p>
-        <div id="wifi-settings">
-          <p>
-            <label for="wifi-ssid">WiFi SSID</label>
-            <input id="wifi-ssid" type="text" value="" style="width:100%" />
-          </p>
-          <p>
-            <label for="wifi-password">WiFi Password</label>
-            <input id="wifi-password" type="text" value="" style="width:100%" />
-          </p>
-        </div>
         <hr/><br />
-        <div id="mqtt-settings">
+        <div id="config-fields">
           <p>
-            <label for="mqtt-server">MQTT Server</label>
-            <input id="mqtt-server" type="text" value="eu-west-2-2.busroot.com" style="width:100%" />
+            <label for="device-id">Device ID</label>
+            <input id="device-id" type="text" value="" style="width:100%" />
           </p>
+          <hr/><br />
           <p>
-            <label for="mqtt-port">MQTT Port</label>
-            <input id="mqtt-port" type="number" value="1885" style="width:100%" />
-          </p>
-          <p>
-            <label for="mqtt-username">MQTT Username</label>
-            <input id="mqtt-username" type="text" value="" style="width:100%" />
-          </p>
-          <p>
-            <label for="mqtt-password">MQTT Password</label>
-            <input id="mqtt-password" type="text" value="" style="width:100%" />
-          </p>
-          <p>
-            <label for="mqtt-client-id">MQTT Client ID</label>
-            <input id="mqtt-client-id" type="text" value="" style="width:100%" />
-          </p>
-        </div>
-        <hr/><br />
-        <p>
-          <label for="modbus-device-name">Modbus Device</label>
-          <select id="modbus-device-name" value="0" style="width:100%">
-            <option>None</option>
-          </select>
-        </p>
-        <div id="modbus-settings">
-          <p>
-            <label for="modbus-device-count">Modbus Device Count</label>
-            <select id="modbus-device-count" value="0" style="width:100%">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
+            <label for="communication-mode">Communication Mode</label>
+            <select id="communication-mode" style="width:100%">
+              <option value="WIFI">WiFi</option>
+              <option value="ETHERNET">Ethernet</option>
+              <option value="BLUES">Blues Wireless for Opta</option>
+              <option value="NONE">None</option>
             </select>
           </p>
+          <div id="wifi-settings">
+            <p>
+              <label for="wifi-ssid">WiFi SSID</label>
+              <input id="wifi-ssid" type="text" value="" style="width:100%" />
+            </p>
+            <p>
+              <label for="wifi-password">WiFi Password</label>
+              <input id="wifi-password" type="text" value="" style="width:100%" />
+            </p>
+          </div>
+          <hr/><br />
+          <div id="mqtt-settings">
+            <p>
+              <label for="mqtt-server">MQTT Server</label>
+              <input id="mqtt-server" type="text" value="eu-west-2-2.busroot.com" style="width:100%" />
+            </p>
+            <p>
+              <label for="mqtt-port">MQTT Port</label>
+              <input id="mqtt-port" type="number" value="1885" style="width:100%" />
+            </p>
+            <p>
+              <label for="mqtt-username">MQTT Username</label>
+              <input id="mqtt-username" type="text" value="" style="width:100%" />
+            </p>
+            <p>
+              <label for="mqtt-password">MQTT Password</label>
+              <input id="mqtt-password" type="text" value="" style="width:100%" />
+            </p>
+            <p>
+              <label for="mqtt-client-id">MQTT Client ID</label>
+              <input id="mqtt-client-id" type="text" value="" style="width:100%" />
+            </p>
+          </div>
+          <hr/><br />
+          <p>
+            <label for="modbus-device-name">Modbus Device</label>
+            <select id="modbus-device-name" value="0" style="width:100%">
+              <option>None</option>
+            </select>
+          </p>
+          <div id="modbus-settings">
+            <p>
+              <label for="modbus-device-count">Modbus Device Count</label>
+              <select id="modbus-device-count" value="0" style="width:100%">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+              </select>
+            </p>
+          </div>
         </div>
       </form>
       <br />
       <hr />
-      <button id="download">Download Busroot Firmware</button>
+      <button id="upload">Upload Busroot DAU Firmware to Arduino Opta</button>
     </div>
     <p id="status"></p>
   </body>

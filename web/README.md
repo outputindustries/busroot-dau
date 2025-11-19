@@ -8,7 +8,7 @@ Web-based firmware programmer for Busroot Opta devices.
 2. Double-press 'Reset' button on Opta (green LED should flash slowly)
 3. Click 'Connect' button to connect the browser to the Opta (Device name ends with 'Bootloader')
 4. Fill in device details
-5. Press 'Download Busroot Firmware' button
+5. Press 'Upload Busroot Firmware' button
 
 ## URL Query Parameters
 

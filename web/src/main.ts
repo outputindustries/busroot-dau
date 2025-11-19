@@ -15,6 +15,7 @@ let dfuseDevice;
 let firmwareM7;
 let firmwareM4;
 let statusText;
+let configMethodInput: HTMLSelectElement;
 let deviceIdInput;
 let wifiSsidInput;
 let wifiPasswordInput;
@@ -24,6 +25,7 @@ let mqttPortInput;
 let mqttUsernameInput;
 let mqttPasswordInput;
 let mqttClientIdInput;
+let configFieldsDiv;
 let wifiSettingsDiv;
 let mqttSettingsDiv;
 let modbusSettingsDiv;
@@ -44,11 +46,12 @@ async function main() {
   const disconnectButton = document.querySelector(
     "#disconnect"
   ) as HTMLButtonElement;
-  const downloadButton = document.querySelector(
-    "#download"
+  const uploadButton = document.querySelector(
+    "#upload"
   ) as HTMLButtonElement;
   statusText = document.querySelector("#status") as HTMLElement;
 
+  configMethodInput = document.querySelector("#config-method") as HTMLSelectElement;
   deviceIdInput = document.querySelector("#device-id");
   wifiSsidInput = document.querySelector("#wifi-ssid");
   wifiPasswordInput = document.querySelector("#wifi-password");
@@ -58,6 +61,7 @@ async function main() {
   mqttUsernameInput = document.querySelector("#mqtt-username");
   mqttPasswordInput = document.querySelector("#mqtt-password");
   mqttClientIdInput = document.querySelector("#mqtt-client-id");
+  configFieldsDiv = document.querySelector("#config-fields");
   wifiSettingsDiv = document.querySelector("#wifi-settings");
   mqttSettingsDiv = document.querySelector("#mqtt-settings");
   modbusSettingsDiv = document.querySelector("#modbus-settings");
@@ -164,7 +168,7 @@ async function main() {
   } catch (error) {
     console.error("Firmware fetch error:", error);
     updateStatusText(
-      "Failed to download firmware files. Please check your connection and try again."
+      "Failed to upload firmware files. Please check your connection and try again."
     );
     connectButton.disabled = true;
   }
@@ -194,9 +198,17 @@ async function main() {
     updateStatusText(" ");
   });
 
-  downloadButton.addEventListener("click", function () {
-    downloadFirmware();
+  uploadButton.addEventListener("click", function () {
+    uploadFirmware();
   });
+
+  // Add event listener for configuration method changes
+  configMethodInput.addEventListener(
+    "change",
+    updateConfigFieldsVisibility
+  );
+  // Set initial visibility
+  updateConfigFieldsVisibility();
 
   // Add event listener for communication mode changes
   communicationModeInput.addEventListener(
@@ -233,7 +245,7 @@ async function connectDfu(usbDevice) {
   updateStatusText("Connected to '" + dfuseDevice.device_.productName + "'.");
 }
 
-async function downloadFirmware() {
+async function uploadFirmware() {
   let firmwareConfig: Uint8Array;
 
   try {
@@ -270,20 +282,28 @@ async function downloadFirmware() {
     return;
   }
 
-  updateStatusText("Downloading M7 firmware to device...");
+  updateStatusText("Uploading M7 firmware to device...");
 
   dfuseDevice.startAddress = parseInt("0x08040000", 16);
   await dfuseDevice.do_download(4096, firmwareM7, false, false);
 
-  updateStatusText("Downloading M4 firmware to device...");
+  updateStatusText("Uploading M4 firmware to device...");
   dfuseDevice.startAddress = parseInt("0x08100000", 16);
   await dfuseDevice.do_download(4096, firmwareM4, false, false);
 
-  updateStatusText("Downloading config to device...");
-  dfuseDevice.startAddress = parseInt("0x080C0000", 16);
-  await dfuseDevice.do_download(4096, firmwareConfig, false, true);
+  // Only upload config if "Configure now and upload with firmware" is selected
+  if (configMethodInput.value === "upload") {
+    updateStatusText("Uploading config to device...");
+    dfuseDevice.startAddress = parseInt("0x080C0000", 16);
+    await dfuseDevice.do_download(4096, firmwareConfig, false, true);
+  } else {
+    updateStatusText("Skipping config upload (will configure via serial interface)...");
+    // Still need to trigger the final manifest phase
+    dfuseDevice.startAddress = parseInt("0x080C0000", 16);
+    await dfuseDevice.do_download(4096, new Uint8Array(0), false, true);
+  }
 
-  updateStatusText("Firmware download complete.");
+  updateStatusText("Firmware upload complete.");
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -349,6 +369,13 @@ function getDFUDescriptorProperties(device) {
       console.log(error);
     }
   );
+}
+
+function updateConfigFieldsVisibility() {
+  if (configFieldsDiv && configMethodInput) {
+    configFieldsDiv.style.display =
+      configMethodInput.value === "upload" ? "block" : "none";
+  }
 }
 
 function updateNetworkSettingsVisibility() {
