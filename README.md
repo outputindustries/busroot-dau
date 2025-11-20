@@ -68,7 +68,7 @@ busroot-dau/
 ```json
 {
   "ver": "v0.1.0",
-  "rssi": -65,
+  "rssi": -65, // WiFi Signal Strength (dB)
   "cb": 10,    // User Button Count
   "c1": 5,     // Input 1 Count
   "c2": 0,     // Input 2 Count
@@ -106,7 +106,7 @@ busroot-dau/
 }
 ```
 
-Published to: `{prefix}/busroot/v1/dau/{deviceId}`
+Published to: `{prefix}/busroot/v2/dau/{deviceId}`
 
 ## Configuration
 
@@ -147,6 +147,7 @@ The device uses LEDs D0-D3 to show status codes in binary:
 | 2 | Ethernet Connecting |
 | 3 | MQTT Connecting |
 | 4 | Running (normal) |
+| 8 | MQTT Publishing |
 | 9 | Config Load Error |
 | 10 | WiFi Failed |
 | 11 | MQTT Failed |
@@ -190,3 +191,7 @@ pio run
 - **Buffer Capacity**: 1000 frames (83 minutes @ 5s intervals)
 - **Serial Baud**: 19200
 - **Modbus Baud**: 19200 (8N1)
+
+## Attributions
+
+* WebDFU - https://github.com/devanlai/webdfu
