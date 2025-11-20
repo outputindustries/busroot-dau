@@ -1,25 +1,21 @@
 # Busroot DAU Firmware
 
-Industrial-grade Data Acquisition Unit (DAU) firmware for Arduino Opta, featuring dual-core architecture with robust input handling, MQTT communication, and 1000-frame circular buffer for maximum reliability.
+Data Acquisition Unit (DAU) firmware for the Arduino Opta, featuring robust input handling, MQTT communication, and 1000-frame circular buffer for maximum reliability.
+
+Supports communication over WiFi, Ethernet and the Blues Wireless for Opta (Cellular) device.
 
 ## Features
 
-### Hardware Support
-- **Arduino Opta** (STM32H747 dual-core)
-- **M4 Core**: Real-time input reading and debouncing
-- **M7 Core**: Network communication and data processing
-
 ### Input Capabilities
-- 6 digital inputs with 50ms debouncing and edge counting
-- 2 analog inputs (12-bit, 0-4095 range)
-- User button monitoring
-- Falling-edge detection for pulse counting
+- 6 digital inputs (I1 to I6) with support for pulse counting and state
+- Pulse counting uses falling-edge detection
+- 2 analog inputs (I7 & I8) (12-bit, 0-4095 range)
 
 ### Communication
 - **MQTT** support via WiFi, Ethernet, or Blues Wireless
 - **Modbus RTU** support for energy meters (19200 baud)
 - **Serial console** for configuration and debugging
-- Valid JSON message formatting
+- JSON message format
 
 ### Reliability Features
 - **1000-frame circular buffer** on M4 core (83 minutes @ 5s intervals)
@@ -31,41 +27,11 @@ Industrial-grade Data Acquisition Unit (DAU) firmware for Arduino Opta, featurin
 
 ## Quick Start
 
-### 1. Build Firmware
+1. Visit [https://outputindustries.github.io/busroot-dau/](https://outputindustries.github.io/busroot-dau/)
+2. Chose to configure via the webpage, or configure via serial.
+3. Double-tap reset button to enter bootloader mode.
+4. Upload firmware.
 
-```bash
-# Install PlatformIO CLI
-pip install platformio
-
-# Clone repository
-git clone <your-repo-url>
-cd busroot-dau
-
-# Build both cores
-pio run
-
-# Firmware binaries automatically copied to web/firmwares/
-```
-
-### 2. Flash to Device
-
-```bash
-# Upload M7 core
-pio run -e opta_m7 -t upload
-
-# Upload M4 core
-pio run -e opta_m4 -t upload
-```
-
-### 3. Configure Device
-
-1. Connect to serial console (19200 baud)
-2. Press Enter within 10 seconds of boot
-3. Follow configuration prompts:
-   - Communication mode (WIFI/ETHERNET/BLUES/NONE)
-   - Network credentials
-   - MQTT broker settings
-   - Modbus configuration (optional)
 
 ## Project Structure
 
@@ -87,39 +53,14 @@ busroot-dau/
 └── README.md               # This file
 ```
 
-## Architecture
-
-### M4 Core (Input Processing)
-- Runs input polling loop at maximum speed
-- Debounces all inputs with 50ms delay
-- Counts falling edges on digital inputs
-- Reads analog values (12-bit resolution)
-- Writes data frames to circular buffer in SDRAM every 5 seconds
-- Manages buffer overflow by dropping oldest frames
-- Protected by watchdog timer
-
-### M7 Core (Communication)
-- Reads sensor data from M4 circular buffer (FIFO order)
-- Manages WiFi/Ethernet/Blues connectivity
-- Publishes to MQTT broker (attempts reconnection on failure)
-- Reads Modbus energy meters (optional)
-- Configuration editor via serial
-- Protected by watchdog timer
-
-### Inter-Core Communication
-- **1000-frame circular buffer** in shared SDRAM (83 minutes @ 5s intervals)
-- **Lock-free FIFO queue**: M4 writes to head, M7 reads from tail
-- **Automatic overflow handling**: Oldest frames dropped when buffer fills
-- **Cache coherent**: Proper D-Cache management for dual-core safety
-- **No data loss during normal operation**: Massive buffer handles extended network outages
 
 ## MQTT Message Format
 
 ### Without Modbus
 ```json
 {
-  "ver": 5,
-  "signal": "-65",
+  "ver": "v0.1.0",
+  "rssi": -65,
   "cb": 10,
   "c1": 5,
   "c2": 0,
@@ -142,8 +83,8 @@ busroot-dau/
 ### With Modbus Energy Meter
 ```json
 {
-  "ver": 5,
-  "signal": "-65",
+  "ver": "v0.1.0",
+  "rssi": -65,
   "cb": 10,
   ...
   "p1v1": 230.5,
@@ -157,23 +98,7 @@ busroot-dau/
 }
 ```
 
-Published to: `busroot/v1/dau/{deviceId}`
-
-## Memory Usage
-
-### M7 Core
-- RAM: 83 KB / 523 KB (16%) - Minimal footprint!
-- Flash: 487 KB / 786 KB (62%)
-
-### M4 Core
-- RAM: 43 KB / 294 KB (15%)
-- Flash: 81 KB / 1 MB (8%)
-
-### Shared SDRAM (Inter-core Buffer)
-- Circular buffer: 1000 frames (~64 KB)
-- Located at 0x38000000 (AHB SRAM4 domain)
-- Uses entire 64 KB AHB SRAM4 region for maximum reliability
-- **All buffering handled on M4 side** for simplicity and reliability
+Published to: `{prefix}/busroot/v1/dau/{deviceId}`
 
 ## Configuration
 
