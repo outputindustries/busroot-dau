@@ -1,18 +1,23 @@
 # Busroot DAU Firmware
 
-Data Acquisition Unit (DAU) firmware for the Arduino Opta, featuring robust input handling, MQTT communication, and 1000-frame circular buffer for maximum reliability.
+Firmware to turn the Arduino Opta into a robust, easy-to-use, data aquisition unit (DAU) for industrial applications. Featuring flexible input handling, MQTT communication, and 1000-frame circular buffer for maximum reliability.
 
 Supports communication over WiFi, Ethernet and the Blues Wireless for Opta (Cellular) device.
+
+Firmware can be uploaded from a web browser using WebDFU: [https://outputindustries.github.io/busroot-dau/](https://outputindustries.github.io/busroot-dau/)
+
+
+![Arduino IDE Serial Monitor](./images/opta.png)
 
 ## Features
 
 ### Input Capabilities
-- 6 digital inputs (I1 to I6) with support for pulse counting and state
-- Pulse counting uses falling-edge detection
-- 2 analog inputs (I7 & I8) (12-bit, 0-4095 range)
+- Support for pulse counting and state readings on inputs 1 to 6.
+- Analog readings (12-bit, 0-4095 range) on inputs 7 and 8.
+- Communication with Energy Meters over Modbus.
 
 ### Communication
-- **MQTT** support via WiFi, Ethernet, or Blues Wireless
+- **MQTT** support over WiFi, Ethernet, or Blues Wireless for Opta
 - **Modbus RTU** support for energy meters (19200 baud)
 - **Serial console** for configuration and debugging
 - JSON message format
@@ -32,6 +37,7 @@ Supports communication over WiFi, Ethernet and the Blues Wireless for Opta (Cell
 3. Double-tap reset button to enter bootloader mode.
 4. Upload firmware.
 
+![Arduino IDE Serial Monitor](./images/prog.png)
 
 ## Project Structure
 
@@ -56,27 +62,29 @@ busroot-dau/
 
 ## MQTT Message Format
 
+![Arduino IDE Serial Monitor](./images/serialmonitor.png)
+
 ### Without Modbus
 ```json
 {
   "ver": "v0.1.0",
   "rssi": -65,
-  "cb": 10,
-  "c1": 5,
-  "c2": 0,
-  "c3": 0,
-  "c4": 0,
-  "c5": 0,
-  "c6": 0,
-  "sb": 1,
-  "s1": 0,
-  "s2": 0,
-  "s3": 0,
-  "s4": 0,
-  "s5": 0,
-  "s6": 0,
-  "a7": 2048,
-  "a8": 1024
+  "cb": 10,    // User Button Count
+  "c1": 5,     // Input 1 Count
+  "c2": 0,     // Input 2 Count
+  "c3": 0,     // Input 3 Count
+  "c4": 0,     // Input 4 Count
+  "c5": 0,     // Input 5 Count
+  "c6": 0,     // Input 6 Count
+  "sb": 1,     // User Button State
+  "s1": 0,     // Input 1 State
+  "s2": 0,     // Input 2 State
+  "s3": 0,     // Input 3 State
+  "s4": 0,     // Input 4 State
+  "s5": 0,     // Input 5 State
+  "s6": 0,     // Input 6 State
+  "a7": 12,    // Input 7 Analog
+  "a8": 0      // Input 8 Analog
 }
 ```
 
@@ -87,14 +95,14 @@ busroot-dau/
   "rssi": -65,
   "cb": 10,
   ...
-  "p1v1": 230.5,
-  "p2v1": 231.2,
-  "p3v1": 229.8,
-  "p1a1": 5.4,
-  "p2a1": 4.9,
-  "p3a1": 5.1,
-  "pf1": 0.95,
-  "kWh1": 1234.5
+  "p1v1": 230.5,  // Modbus Device 1 - Phase 1 Volts
+  "p2v1": 231.2,  // Modbus Device 1 - Phase 2 Volts
+  "p3v1": 229.8,  // Modbus Device 1 - Phase 3 Volts
+  "p1a1": 5.4,    // Modbus Device 1 - Phase 1 Amps
+  "p2a1": 4.9,    // Modbus Device 1 - Phase 2 Amps
+  "p3a1": 5.1,    // Modbus Device 1 - Phase 3 Amps
+  "pf1": 0.95,    // Modbus Device 1 - Power Factor
+  "kWh1": 1234.5  // Modbus Device 1 - Kilowatt-hours (Meter Reading)
 }
 ```
 
