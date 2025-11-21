@@ -1,11 +1,14 @@
 # Busroot DAU Firmware
 
-Firmware to turn the Arduino Opta into a robust, easy-to-use, data aquisition unit (DAU) for industrial applications. Featuring flexible input handling, MQTT communication, and 1000-frame circular buffer for maximum reliability.
+Firmware to turn the Arduino Opta into a robust, easy-to-use, data aquisition unit (DAU) for industrial analytics. Featuring simple input handling, MQTT communication, and 1000-frame circular buffer for maximum reliability in the case of connection drops.
 
 Supports communication over WiFi, Ethernet and the Blues Wireless for Opta (Cellular) device.
 
 Firmware can be uploaded from a web browser using WebDFU: [https://outputindustries.github.io/busroot-dau/](https://outputindustries.github.io/busroot-dau/)
 
+# Who is this for?
+
+Anyone looking for a reliable and straightforward way to capture data points from a shop floor or industrial environment.
 
 ![Arduino IDE Serial Monitor](./images/opta.png)
 
