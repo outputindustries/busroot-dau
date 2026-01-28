@@ -1,0 +1,21 @@
+{
+  "name": "busroot-dau-examples",
+  "version": "1.0.0",
+  "description": "Example Node.js scripts for Busroot DAU integration",
+  "main": "mqtt-listener.js",
+  "scripts": {
+    "listen": "node mqtt-listener.js"
+  },
+  "keywords": [
+    "busroot",
+    "mqtt",
+    "iot",
+    "industrial",
+    "data-acquisition"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mqtt": "^5.3.0"
+  }
+}
