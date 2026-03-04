@@ -604,11 +604,11 @@ void loop()
 
     if (strlen(mqttTopicPrefix) > 0)
     {
-      snprintf(topic, sizeof(topic), "%s/busroot/v2/dau/%s", mqttTopicPrefix, deviceId);
+      snprintf(topic, sizeof(topic), "%s/busroot/v1/dau/%s", mqttTopicPrefix, deviceId);
     }
     else
     {
-      snprintf(topic, sizeof(topic), "busroot/v2/dau/%s", deviceId);
+      snprintf(topic, sizeof(topic), "busroot/v1/dau/%s", deviceId);
     }
 
     // MODBUS
