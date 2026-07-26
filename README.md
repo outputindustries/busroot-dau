@@ -279,6 +279,21 @@ pio run -t clean
 - **Serial Baud**: 19200
 - **Modbus Baud**: 19200 (8N1)
 
+## Examples
+
+See the [`examples/`](examples/) directory for Node.js integration examples:
+
+- **MQTT Listener**: Subscribe to and display data from Busroot DAU devices
+- More examples coming soon!
+
+## GitHub Copilot Agent
+
+This repository includes a GitHub Copilot agent (`busroot`) that understands the Busroot DAU architecture and can help with:
+- Understanding the dual-core firmware design
+- Working with MQTT integration and data formats
+- Running and modifying Node.js example scripts
+- Configuration and troubleshooting
+
 ## Attributions
 
 * WebDFU - https://github.com/devanlai/webdfu
