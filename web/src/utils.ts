@@ -6,7 +6,7 @@ const VERSION = 3;
 interface DauConfig {
   v: number;
   did: string;
-  com: "WIFI" | "ETHERNET" | "BLUES" | "NONE";
+  com: "WIFI" | "ETHERNET" | "NONE";
   wid?: string;
   wpw?: string;
   msv: string;
@@ -22,7 +22,7 @@ interface DauConfig {
 
 interface DauTokenInputs {
   deviceId: string;
-  communicationMode: "WIFI" | "ETHERNET" | "BLUES" | "NONE";
+  communicationMode: "WIFI" | "ETHERNET" | "NONE";
   mqttServer?: string;
   mqttPort?: number;
   mqttUsername?: string;

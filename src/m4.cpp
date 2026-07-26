@@ -1,6 +1,5 @@
 #include "SDRAM.h"
 #include "data_frame.h"
-#include <Watchdog.h>
 #include "Arduino.h"
 
 unsigned long sendInterval = 5000;
@@ -22,8 +21,6 @@ int analogs[] = {0, 0};
 
 void setup()
 {
-  mbed::Watchdog::get_instance().start();
-
   SDRAM.begin(SDRAM_START_ADDRESS_4);
 
   // Initialize circular buffer
@@ -41,12 +38,8 @@ void setup()
   analogReadResolution(12);
 
   // This is to allow M7 to have started. Otherwise the buffer is filled with multiple messages.
-  // Reduced from 20s to 10s, with watchdog kicks
-  for (int i = 0; i < 10; i++)
-  {
-    mbed::Watchdog::get_instance().kick();
-    delay(1000);
-  }
+  // Reduced from 20s to 10s. The M7 core owns the watchdog and keeps it fed while we wait here.
+  delay(10000);
 }
 
 void readInputs()
@@ -101,9 +94,12 @@ void readInputs()
 
 void loop()
 {
+  // NOTE: M4 deliberately does NOT kick the watchdog — the M7 core is its sole
+  // owner. Both cores' mbed Watchdog map to the same IWDG1, so if M4 fed it too,
+  // an M7 stall (e.g. a blocked USB-CDC Serial.print) would be masked and never
+  // reset the device. An M4 failure is instead caught by M7's publish dead-man
+  // timer: no frames from M4 -> no successful publishes -> M7 resets.
   unsigned long currentMillis = millis();
-
-  mbed::Watchdog::get_instance().kick();
 
   readInputs();
 

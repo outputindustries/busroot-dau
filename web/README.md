@@ -19,7 +19,7 @@ All form fields can be pre-filled using URL query parameters. This is useful for
 | Parameter | Description | Example Value |
 |-----------|-------------|---------------|
 | `device-id` | Unique device identifier | `opta-001` |
-| `communication-mode` | Communication method | `WIFI`, `ETHERNET`, `BLUES`, or `NONE` |
+| `communication-mode` | Communication method | `WIFI`, `ETHERNET`, or `NONE` |
 | `wifi-ssid` | WiFi network name | `MyNetwork` |
 | `wifi-password` | WiFi password | `MyPassword123` |
 | `mqtt-server` | MQTT broker address | `mqtt.example.com` |
@@ -42,12 +42,6 @@ http://localhost:3000/?device-id=opta-warehouse-01&communication-mode=WIFI&wifi-
 
 ```
 http://localhost:3000/?device-id=opta-factory-02&communication-mode=ETHERNET&mqtt-server=mqtt.example.com&mqtt-port=1883&mqtt-username=factory-device&mqtt-password=devicepass456&modbus-device-name=Carlo%20Gavazzi%20-%20EM210&modbus-device-count=2
-```
-
-#### Blues Wireless Configuration
-
-```
-http://localhost:3000/?device-id=opta-remote-03&communication-mode=BLUES&mqtt-server=mqtt.example.com&mqtt-port=1883&mqtt-username=opta-remote-03&mqtt-password=remotepass789&modbus-device-name=RS%20PRO%20-%20236-929X&modbus-device-count=1
 ```
 
 #### No Communication Mode (Local Only)

@@ -36,6 +36,57 @@ char inputBuffer[256] = {0};
 int inputBufferIndex = 0;
 bool promptShown = false;
 
+// Compiled-in defaults, snapshotted before any stored config is applied, so a
+// single-space entry in the editor can restore a field to its default.
+static CommunicationMode defaultCommunicationMode;
+static char defaultDeviceId[128];
+static char defaultWifiSsid[128];
+static char defaultWifiPassword[128];
+static char defaultMqttServer[128];
+static int defaultMqttPort;
+static char defaultMqttUsername[128];
+static char defaultMqttPassword[128];
+static char defaultMqttClientId[128];
+static char defaultMqttTopicPrefix[128];
+static int defaultModbusDeviceCount;
+static int defaultModbusRegisterStyle;
+static int defaultP1VoltsModbusAddress;
+static int defaultP2VoltsModbusAddress;
+static int defaultP3VoltsModbusAddress;
+static int defaultP1AmpsModbusAddress;
+static int defaultP2AmpsModbusAddress;
+static int defaultP3AmpsModbusAddress;
+static int defaultPfModbusAddress;
+static int defaultKWhModbusAddress;
+static bool configDefaultsCaptured = false;
+
+static void captureConfigDefaults()
+{
+  if (configDefaultsCaptured)
+    return;
+  defaultCommunicationMode = communicationMode;
+  strcpy(defaultDeviceId, deviceId);
+  strcpy(defaultWifiSsid, wifiSsid);
+  strcpy(defaultWifiPassword, wifiPassword);
+  strcpy(defaultMqttServer, mqttServer);
+  defaultMqttPort = mqttPort;
+  strcpy(defaultMqttUsername, mqttUsername);
+  strcpy(defaultMqttPassword, mqttPassword);
+  strcpy(defaultMqttClientId, mqttClientId);
+  strcpy(defaultMqttTopicPrefix, mqttTopicPrefix);
+  defaultModbusDeviceCount = modbusDeviceCount;
+  defaultModbusRegisterStyle = modbusRegisterStyle;
+  defaultP1VoltsModbusAddress = p1VoltsModbusAddress;
+  defaultP2VoltsModbusAddress = p2VoltsModbusAddress;
+  defaultP3VoltsModbusAddress = p3VoltsModbusAddress;
+  defaultP1AmpsModbusAddress = p1AmpsModbusAddress;
+  defaultP2AmpsModbusAddress = p2AmpsModbusAddress;
+  defaultP3AmpsModbusAddress = p3AmpsModbusAddress;
+  defaultPfModbusAddress = pfModbusAddress;
+  defaultKWhModbusAddress = kWhModbusAddress;
+  configDefaultsCaptured = true;
+}
+
 JsonDocument configDoc;
 unsigned char configToken[512] = {0};
 
@@ -82,10 +133,6 @@ void saveConfigTokenToMemory()
   {
     saveDoc["com"] = "ETHERNET";
   }
-  else if (communicationMode == BLUES)
-  {
-    saveDoc["com"] = "BLUES";
-  }
   else if (communicationMode == NONE)
   {
     saveDoc["com"] = "NONE";
@@ -123,7 +170,7 @@ void saveConfigTokenToMemory()
   Serial.println("Configuration saved to flash memory");
 }
 
-void applyConfigToken()
+void applyConfigToken(bool silent)
 {
 
   unsigned char msgPack[512] = {0};
@@ -132,6 +179,15 @@ void applyConfigToken()
 
   if (err || !configDoc.containsKey("v"))
   {
+    if (silent)
+    {
+      // Called from the config editor pre-load: an empty/invalid flash config
+      // is normal on a fresh device. Keep the compiled-in defaults and let the
+      // user fill in values without raising an error.
+      Serial.println("No stored config - starting editor from defaults...");
+      return;
+    }
+
     Serial.println("No config found or failed to decode - entering serial-only mode...");
     serialOnlyMode = true;
     showError(ERROR_CONFIG_LOAD);
@@ -148,10 +204,6 @@ void applyConfigToken()
     if (strcmp(mode, "ETHERNET") == 0)
     {
       communicationMode = ETHERNET;
-    }
-    else if (strcmp(mode, "BLUES") == 0)
-    {
-      communicationMode = BLUES;
     }
     else if (strcmp(mode, "NONE") == 0)
     {
@@ -228,7 +280,6 @@ void printConfig()
 
   Serial.print("communicationMode: ");
   Serial.println(communicationMode == WIFI ? "WIFI" : communicationMode == ETHERNET ? "ETHERNET"
-                                                  : communicationMode == BLUES      ? "BLUES"
                                                                                     : "NONE");
 
   Serial.print("deviceId: ");
@@ -298,7 +349,7 @@ void printConfig()
 void showConfigPrompt()
 {
   const char *fieldNames[] = {
-      "Communication Mode (WIFI/ETHERNET/BLUES/NONE)",
+      "Communication Mode (WIFI/ETHERNET/NONE)",
       "Device ID",
       "WiFi SSID",
       "WiFi Password",
@@ -309,9 +360,17 @@ void showConfigPrompt()
       "MQTT Client ID",
       "MQTT Topic Prefix",
       "Modbus Device Count",
-      "Modbus Register Style (0 or 1)"};
+      "Modbus Register Style (0 or 1)",
+      "P1 Volts Modbus Address",
+      "P2 Volts Modbus Address",
+      "P3 Volts Modbus Address",
+      "P1 Amps Modbus Address",
+      "P2 Amps Modbus Address",
+      "P3 Amps Modbus Address",
+      "Power Factor Modbus Address",
+      "kWh Modbus Address"};
 
-  if (currentConfigField >= 12)
+  if (currentConfigField >= 20)
   {
     // Done editing
     Serial.println();
@@ -325,6 +384,14 @@ void showConfigPrompt()
   if (!promptShown)
   {
     Serial.println();
+
+    if (currentConfigField == 11)
+    {
+      // Explain the two Modbus register decoding styles
+      Serial.println("  0 = 32-bit IEEE754 float, word order MSW->LSW (e.g. RS-Pro devices)");
+      Serial.println("  1 = 32-bit integer, word-swapped LSW->MSW (e.g. Carlo Gavazzi devices)");
+    }
+
     Serial.print(fieldNames[currentConfigField]);
     Serial.print(" [");
 
@@ -333,7 +400,6 @@ void showConfigPrompt()
     {
     case 0:
       Serial.print(communicationMode == WIFI ? "WIFI" : communicationMode == ETHERNET ? "ETHERNET"
-                                                    : communicationMode == BLUES      ? "BLUES"
                                                                                       : "NONE");
       break;
     case 1:
@@ -369,6 +435,30 @@ void showConfigPrompt()
     case 11:
       Serial.print(modbusRegisterStyle);
       break;
+    case 12:
+      Serial.print(p1VoltsModbusAddress);
+      break;
+    case 13:
+      Serial.print(p2VoltsModbusAddress);
+      break;
+    case 14:
+      Serial.print(p3VoltsModbusAddress);
+      break;
+    case 15:
+      Serial.print(p1AmpsModbusAddress);
+      break;
+    case 16:
+      Serial.print(p2AmpsModbusAddress);
+      break;
+    case 17:
+      Serial.print(p3AmpsModbusAddress);
+      break;
+    case 18:
+      Serial.print(pfModbusAddress);
+      break;
+    case 19:
+      Serial.print(kWhModbusAddress);
+      break;
     }
 
     Serial.print("]: ");
@@ -376,6 +466,16 @@ void showConfigPrompt()
     inputBufferIndex = 0;
     memset(inputBuffer, 0, sizeof(inputBuffer));
   }
+}
+
+// Returns true when c is the '\n' half of a "\r\n" sequence and should be
+// ignored, so terminals that send CRLF on Enter don't skip the next field.
+static bool isCrlfTail(char c)
+{
+  static char prevChar = 0;
+  bool ignore = (c == '\n' && prevChar == '\r');
+  prevChar = c;
+  return ignore;
 }
 
 void processConfigInput(char c)
@@ -390,51 +490,144 @@ void processConfigInput(char c)
     {
       inputBuffer[inputBufferIndex] = '\0';
 
-      switch (currentConfigField)
+      if (strcmp(inputBuffer, " ") == 0)
       {
-      case 0: // Communication mode
-        if (strcmp(inputBuffer, "WIFI") == 0)
-          communicationMode = WIFI;
-        else if (strcmp(inputBuffer, "ETHERNET") == 0)
-          communicationMode = ETHERNET;
-        else if (strcmp(inputBuffer, "BLUES") == 0)
-          communicationMode = BLUES;
-        else if (strcmp(inputBuffer, "NONE") == 0)
-          communicationMode = NONE;
-        break;
-      case 1:
-        strncpy(deviceId, inputBuffer, sizeof(deviceId) - 1);
-        break;
-      case 2:
-        strncpy(wifiSsid, inputBuffer, sizeof(wifiSsid) - 1);
-        break;
-      case 3:
-        strncpy(wifiPassword, inputBuffer, sizeof(wifiPassword) - 1);
-        break;
-      case 4:
-        strncpy(mqttServer, inputBuffer, sizeof(mqttServer) - 1);
-        break;
-      case 5:
-        mqttPort = atoi(inputBuffer);
-        break;
-      case 6:
-        strncpy(mqttUsername, inputBuffer, sizeof(mqttUsername) - 1);
-        break;
-      case 7:
-        strncpy(mqttPassword, inputBuffer, sizeof(mqttPassword) - 1);
-        break;
-      case 8:
-        strncpy(mqttClientId, inputBuffer, sizeof(mqttClientId) - 1);
-        break;
-      case 9:
-        strncpy(mqttTopicPrefix, inputBuffer, sizeof(mqttTopicPrefix) - 1);
-        break;
-      case 10:
-        modbusDeviceCount = atoi(inputBuffer);
-        break;
-      case 11:
-        modbusRegisterStyle = atoi(inputBuffer);
-        break;
+        // Single space -> restore this field to its compiled-in default
+        switch (currentConfigField)
+        {
+        case 0:
+          communicationMode = defaultCommunicationMode;
+          break;
+        case 1:
+          strcpy(deviceId, defaultDeviceId);
+          break;
+        case 2:
+          strcpy(wifiSsid, defaultWifiSsid);
+          break;
+        case 3:
+          strcpy(wifiPassword, defaultWifiPassword);
+          break;
+        case 4:
+          strcpy(mqttServer, defaultMqttServer);
+          break;
+        case 5:
+          mqttPort = defaultMqttPort;
+          break;
+        case 6:
+          strcpy(mqttUsername, defaultMqttUsername);
+          break;
+        case 7:
+          strcpy(mqttPassword, defaultMqttPassword);
+          break;
+        case 8:
+          strcpy(mqttClientId, defaultMqttClientId);
+          break;
+        case 9:
+          strcpy(mqttTopicPrefix, defaultMqttTopicPrefix);
+          break;
+        case 10:
+          modbusDeviceCount = defaultModbusDeviceCount;
+          break;
+        case 11:
+          modbusRegisterStyle = defaultModbusRegisterStyle;
+          break;
+        case 12:
+          p1VoltsModbusAddress = defaultP1VoltsModbusAddress;
+          break;
+        case 13:
+          p2VoltsModbusAddress = defaultP2VoltsModbusAddress;
+          break;
+        case 14:
+          p3VoltsModbusAddress = defaultP3VoltsModbusAddress;
+          break;
+        case 15:
+          p1AmpsModbusAddress = defaultP1AmpsModbusAddress;
+          break;
+        case 16:
+          p2AmpsModbusAddress = defaultP2AmpsModbusAddress;
+          break;
+        case 17:
+          p3AmpsModbusAddress = defaultP3AmpsModbusAddress;
+          break;
+        case 18:
+          pfModbusAddress = defaultPfModbusAddress;
+          break;
+        case 19:
+          kWhModbusAddress = defaultKWhModbusAddress;
+          break;
+        }
+        Serial.println("(reset to default)");
+      }
+      else
+      {
+        switch (currentConfigField)
+        {
+        case 0: // Communication mode
+          if (strcmp(inputBuffer, "WIFI") == 0)
+            communicationMode = WIFI;
+          else if (strcmp(inputBuffer, "ETHERNET") == 0)
+            communicationMode = ETHERNET;
+          else if (strcmp(inputBuffer, "NONE") == 0)
+            communicationMode = NONE;
+          break;
+        case 1:
+          strncpy(deviceId, inputBuffer, sizeof(deviceId) - 1);
+          break;
+        case 2:
+          strncpy(wifiSsid, inputBuffer, sizeof(wifiSsid) - 1);
+          break;
+        case 3:
+          strncpy(wifiPassword, inputBuffer, sizeof(wifiPassword) - 1);
+          break;
+        case 4:
+          strncpy(mqttServer, inputBuffer, sizeof(mqttServer) - 1);
+          break;
+        case 5:
+          mqttPort = atoi(inputBuffer);
+          break;
+        case 6:
+          strncpy(mqttUsername, inputBuffer, sizeof(mqttUsername) - 1);
+          break;
+        case 7:
+          strncpy(mqttPassword, inputBuffer, sizeof(mqttPassword) - 1);
+          break;
+        case 8:
+          strncpy(mqttClientId, inputBuffer, sizeof(mqttClientId) - 1);
+          break;
+        case 9:
+          strncpy(mqttTopicPrefix, inputBuffer, sizeof(mqttTopicPrefix) - 1);
+          break;
+        case 10:
+          modbusDeviceCount = atoi(inputBuffer);
+          break;
+        case 11:
+          modbusRegisterStyle = atoi(inputBuffer);
+          break;
+        case 12:
+          p1VoltsModbusAddress = atoi(inputBuffer);
+          break;
+        case 13:
+          p2VoltsModbusAddress = atoi(inputBuffer);
+          break;
+        case 14:
+          p3VoltsModbusAddress = atoi(inputBuffer);
+          break;
+        case 15:
+          p1AmpsModbusAddress = atoi(inputBuffer);
+          break;
+        case 16:
+          p2AmpsModbusAddress = atoi(inputBuffer);
+          break;
+        case 17:
+          p3AmpsModbusAddress = atoi(inputBuffer);
+          break;
+        case 18:
+          pfModbusAddress = atoi(inputBuffer);
+          break;
+        case 19:
+          kWhModbusAddress = atoi(inputBuffer);
+          break;
+        }
       }
     }
 
@@ -471,6 +664,10 @@ void processConfigInput(char c)
 
 void initConfigEditor()
 {
+  // Snapshot compiled-in defaults before any stored flash config is applied,
+  // so a single-space entry can restore a field to its default.
+  captureConfigDefaults();
+
   editorState = WAITING_INITIAL;
   editorDeadline = millis() + 5000; // 5 second initial wait
 }
@@ -531,14 +728,14 @@ bool handleConfigEditorState()
     if (Serial.available())
     {
       char c = Serial.read();
-      if (c == '\r' || c == '\n')
+      if (!isCrlfTail(c) && (c == '\r' || c == '\n'))
       {
         Serial.println("Entering config editor...");
         Serial.println();
 
-        // Load existing config first
+        // Load existing config first (silent: empty flash is normal here)
         loadConfigTokenFromMemory();
-        applyConfigToken();
+        applyConfigToken(true);
 
         editorState = EDITING_CONFIG;
         currentConfigField = 0;
@@ -572,7 +769,8 @@ bool handleConfigEditorState()
     if (Serial.available())
     {
       char c = Serial.read();
-      processConfigInput(c);
+      if (!isCrlfTail(c))
+        processConfigInput(c);
     }
 
     // Stay in this state until all fields are done

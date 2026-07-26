@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <Notecard.h>
 #include <WiFi.h>
 #include <SPI.h>
 #include <PortentaEthernet.h>
@@ -32,12 +31,16 @@ const char *VERSION = FIRMWARE_VERSION;
  * mci = mqttClientId
  * mpo = mqttPort
  * mdc = modbusDeviceCount
- * com = communicationMode (ETHERNET, WIFI, BLUES)
+ * com = communicationMode (ETHERNET, WIFI)
  */
 
-Notecard notecard;
-
 bool setupComplete = false;
+
+// Publish-health dead-man timer: if no message has been successfully sent (MQTT
+// publish, or serial output in serial-only/NONE mode) within this window, force a
+// restart so the device keeps getting fresh chances to reconnect and publish.
+#define PUBLISH_DEADMAN_MS 120000UL
+volatile unsigned long lastSuccessfulSendMillis = 0;
 
 WiFiClient wifiClient;
 EthernetClient ethClient;
@@ -82,8 +85,8 @@ void listNetworks()
   if (numSsid == -1)
   {
     Serial.println("Couldn't get a wifi connection");
-    while (true)
-      ;
+    showError(ERROR_WIFI_FAILED);
+    HAL_NVIC_SystemReset();
   }
 
   // print the list of networks seen:
@@ -191,7 +194,7 @@ void setupWifi()
   Serial.print("Connecting to ");
   Serial.println(wifiSsid);
 
-  int status;
+  int status = WL_IDLE_STATUS;
 
   // Poll WiFi status with frequent watchdog kicks
   while (status != WL_CONNECTED)
@@ -296,6 +299,7 @@ void reconnect()
     if (mqttClient->connect(mqttClientId, mqttUsername, mqttPassword))
     {
       Serial.println("connected");
+      mqttAttempts = 0; // reset so the cap means consecutive, not lifetime, failures
       break;
     }
     else
@@ -339,6 +343,7 @@ void setupNetworking()
   {
     setDeviceState(STATE_ETHERNET_CONNECTING);
     Serial.println("Trying Ethernet:");
+    unsigned int ethernetAttempts = 0;
     while (Ethernet.begin(nullptr, 10000, 4000) == 0)
     {
       Serial.println("Failed to configure Ethernet using DHCP...");
@@ -346,6 +351,15 @@ void setupNetworking()
       {
         Serial.println("Ethernet cable is not connected...");
       }
+
+      ethernetAttempts++;
+      if (ethernetAttempts > 10)
+      {
+        Serial.println("Ethernet connection failed after 10 attempts");
+        showError(ERROR_ETHERNET_FAILED);
+        HAL_NVIC_SystemReset();
+      }
+
       // Kick watchdog to prevent timeout during DHCP attempts
       mbed::Watchdog::get_instance().kick();
       delay(1000);
@@ -363,11 +377,6 @@ void setupNetworking()
     setupWifi();
     wifiClient.setTimeout(5000); // 5 second timeout
     mqttClient = new PubSubClient(wifiClient);
-  }
-  else if (communicationMode == BLUES)
-  {
-    notecard.setDebugOutputStream(Serial);
-    notecard.begin();
   }
   else if (communicationMode == NONE)
   {
@@ -426,9 +435,9 @@ void setup()
   pinMode(LED_D2, OUTPUT);
   pinMode(LED_D3, OUTPUT);
 
-  digitalWrite(LEDR, 0);
-  digitalWrite(LEDG, 0);
-  digitalWrite(LEDB, 0);
+  digitalWrite(LEDR, HIGH);
+  digitalWrite(LEDG, HIGH);
+  digitalWrite(LEDB, LOW);
   digitalWrite(LED_D0, 0);
   digitalWrite(LED_D1, 0);
   digitalWrite(LED_D2, 0);
@@ -442,10 +451,12 @@ void setup()
   // Boot M4 core after basic initialization
   bootM4();
 
+#ifndef SKIP_FLASH_CONFIG
   initFlashStorage();
 
   // Initialize config editor state machine
   initConfigEditor();
+#endif
 }
 
 bool attemptPublish(const char *topic, const char *message)
@@ -473,33 +484,13 @@ bool attemptPublish(const char *topic, const char *message)
     }
     return false;
   }
-  else if (communicationMode == BLUES)
-  {
-    // Create a JSON request object for the Notecard
-    J *req = notecard.newRequest("note.add");
-    if (req != NULL)
-    {
-      JAddStringToObject(req, "file", "data.qo");
-      JAddBoolToObject(req, "sync", true);
-
-      // Add the message as body
-      J *body = JCreateObject();
-      if (body != NULL)
-      {
-        JAddStringToObject(body, "topic", topic);
-        JAddStringToObject(body, "message", message);
-        JAddItemToObject(req, "body", body);
-      }
-
-      return notecard.sendRequest(req);
-    }
-    return false;
-  }
 
   return true; // Serial-only mode always succeeds
 }
 
-void sendMessage(const char *topic, const char *message)
+// Returns true when the message was successfully sent: an accepted MQTT publish,
+// or a serial output in serial-only mode (where serial is the delivery channel).
+bool sendMessage(const char *topic, const char *message)
 {
   // Always output to serial
   Serial.println();
@@ -510,11 +501,12 @@ void sendMessage(const char *topic, const char *message)
   if (!serialOnlyMode)
   {
     // Attempt to publish the message
-    attemptPublish(topic, message);
+    return attemptPublish(topic, message);
   }
   else
   {
     delay(500);
+    return true; // serial output is the successful send in serial-only mode
   }
 }
 
@@ -522,16 +514,20 @@ void loop()
 {
   // Config editor state machine
   mbed::Watchdog::get_instance().kick();
+#ifndef SKIP_FLASH_CONFIG
   if (handleConfigEditorState())
   {
     return; // Still in config editor mode
   }
+#endif
 
   if (!setupComplete)
   {
+#ifndef SKIP_FLASH_CONFIG
     loadConfigTokenFromMemory();
     deinitFlashStorage();
     applyConfigToken();
+#endif
 
     if (!serialOnlyMode)
     {
@@ -550,8 +546,21 @@ void loop()
 
     setupComplete = true;
 
+    // Start the publish-health dead-man timer now that networking is up, so it
+    // can't fire spuriously during setup or before the first frame arrives.
+    lastSuccessfulSendMillis = millis();
+
     // Set running state
     setDeviceState(STATE_RUNNING);
+  }
+
+  // Publish-health dead-man timer: restart if nothing has been successfully sent
+  // within the window. Unsigned subtraction is wraparound-safe (~49 day millis()).
+  if (setupComplete && millis() - lastSuccessfulSendMillis > PUBLISH_DEADMAN_MS)
+  {
+    Serial.println("No successful publish within dead-man window - restarting...");
+    showError(ERROR_PUBLISH_FAILED);
+    HAL_NVIC_SystemReset();
   }
 
   // void receiveDataFromM4()
@@ -599,6 +608,9 @@ void loop()
       rssi = WiFi.RSSI();
     }
 
+    // Uptime in seconds
+    unsigned long uptimeSec = millis() / 1000;
+
     char topic[128] = {0};
     char message[2056] = {0};
 
@@ -614,9 +626,10 @@ void loop()
     // MODBUS
     if (modbusDeviceCount == 0)
     {
-      snprintf(message, sizeof(message), "{\"v\":\"%s\",\"rssi\":%d,\"cb\":%u,\"c1\":%u,\"c2\":%u,\"c3\":%u,\"c4\":%u,\"c5\":%u,\"c6\":%u,\"sb\":%u,\"s1\":%u,\"s2\":%u,\"s3\":%u,\"s4\":%u,\"s5\":%u,\"s6\":%u,\"a7\":%u,\"a8\":%u}",
+      snprintf(message, sizeof(message), "{\"v\":\"%s\",\"rssi\":%d,\"up\":%lu,\"cb\":%u,\"c1\":%u,\"c2\":%u,\"c3\":%u,\"c4\":%u,\"c5\":%u,\"c6\":%u,\"sb\":%u,\"s1\":%u,\"s2\":%u,\"s3\":%u,\"s4\":%u,\"s5\":%u,\"s6\":%u,\"a7\":%u,\"a8\":%u}",
                VERSION,
                rssi,
+               uptimeSec,
                dataFromM4.userButtonCount,
                dataFromM4.input1Count,
                dataFromM4.input2Count,
@@ -652,9 +665,10 @@ void loop()
       const float pf = getModbusRegister(i + 1, pfModbusAddress);
       const float kWh = getModbusRegister(i + 1, kWhModbusAddress);
 
-      snprintf(message, sizeof(message), "{\"v\":\"%s\",\"rssi\":%d,\"cb\":%u,\"c1\":%u,\"c2\":%u,\"c3\":%u,\"c4\":%u,\"c5\":%u,\"c6\":%u,\"sb\":%u,\"s1\":%u,\"s2\":%u,\"s3\":%u,\"s4\":%u,\"s5\":%u,\"s6\":%u,\"a7\":%u,\"a8\":%u,\"p1v%u\":%.4f,\"p2v%u\":%.4f,\"p3v%u\":%.4f,\"p1a%u\":%.4f,\"p2a%u\":%.4f,\"p3a%u\":%.4f,\"pf%u\":%.4f,\"kWh%u\":%.4f}",
+      snprintf(message, sizeof(message), "{\"v\":\"%s\",\"rssi\":%d,\"up\":%lu,\"cb\":%u,\"c1\":%u,\"c2\":%u,\"c3\":%u,\"c4\":%u,\"c5\":%u,\"c6\":%u,\"sb\":%u,\"s1\":%u,\"s2\":%u,\"s3\":%u,\"s4\":%u,\"s5\":%u,\"s6\":%u,\"a7\":%u,\"a8\":%u,\"p1v%u\":%.4f,\"p2v%u\":%.4f,\"p3v%u\":%.4f,\"p1a%u\":%.4f,\"p2a%u\":%.4f,\"p3a%u\":%.4f,\"pf%u\":%.4f,\"kWh%u\":%.4f}",
                VERSION,
                rssi,
+               uptimeSec,
                dataFromM4.userButtonCount,
                dataFromM4.input1Count,
                dataFromM4.input2Count,
@@ -688,7 +702,10 @@ void loop()
     messageString.replace(".0000", "");
     messageString.toCharArray(message, 2056);
 
-    sendMessage(topic, message);
+    if (sendMessage(topic, message))
+    {
+      lastSuccessfulSendMillis = millis();
+    }
 
     memset(topic, 0, sizeof(topic));
     memset(message, 0, sizeof(message));

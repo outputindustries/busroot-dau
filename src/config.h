@@ -12,7 +12,6 @@ enum CommunicationMode
 {
   WIFI,
   ETHERNET,
-  BLUES,
   NONE
 };
 
@@ -66,7 +65,7 @@ void initFlashStorage();
 void deinitFlashStorage();
 void loadConfigTokenFromMemory();
 void saveConfigTokenToMemory();
-void applyConfigToken();
+void applyConfigToken(bool silent = false);
 void printConfig();
 void showConfigPrompt();
 void processConfigInput(char c);

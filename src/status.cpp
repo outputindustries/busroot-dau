@@ -16,8 +16,6 @@ const char *getStateName(uint8_t state)
     return "RUNNING";
   case STATE_READING_M4:
     return "READING_M4";
-  case STATE_DECODING_PROTOBUF:
-    return "DECODING_PROTOBUF";
   case STATE_READING_MODBUS:
     return "READING_MODBUS";
   case STATE_PUBLISHING:
@@ -30,8 +28,8 @@ const char *getStateName(uint8_t state)
     return "ERROR_MQTT_FAILED";
   case ERROR_PUBLISH_FAILED:
     return "ERROR_PUBLISH_FAILED";
-  case ERROR_DECODE_FAILED:
-    return "ERROR_DECODE_FAILED";
+  case ERROR_ETHERNET_FAILED:
+    return "ERROR_ETHERNET_FAILED";
   case ERROR_BUFFER_OVERFLOW:
     return "ERROR_BUFFER_OVERFLOW";
   case ERROR_UNKNOWN:
@@ -52,6 +50,18 @@ void setDeviceState(uint8_t state)
   digitalWrite(LED_D1, (state & 0x04) ? HIGH : LOW); // Bit 1
   digitalWrite(LED_D2, (state & 0x02) ? HIGH : LOW); // Bit 2
   digitalWrite(LED_D3, (state & 0x01) ? HIGH : LOW); // Bit 3
+
+  // RGB LED: amber during init (1-3), green when running (4-8)
+  if (state >= STATE_WIFI_CONNECTING && state <= STATE_MQTT_CONNECTING)
+  {
+    digitalWrite(LEDR, HIGH);
+    digitalWrite(LEDG, HIGH);
+  }
+  else if (state >= STATE_RUNNING && state <= STATE_PUBLISHING)
+  {
+    digitalWrite(LEDR, LOW);
+    digitalWrite(LEDG, HIGH);
+  }
 }
 
 // Show error: RGB LED red, display error code for 10 seconds, then restart
