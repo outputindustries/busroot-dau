@@ -23,10 +23,7 @@ void setup()
 {
   SDRAM.begin(SDRAM_START_ADDRESS_4);
 
-  // Initialize circular buffer
-  data_frame_buffer_sdram->head = 0;
-  data_frame_buffer_sdram->tail = 0;
-  data_frame_buffer_sdram->count = 0;
+  // The circular buffer header is zeroed by the M7 before it boots this core.
 
   pinMode(LEDB, OUTPUT);
 
@@ -107,6 +104,12 @@ void loop()
   {
     // Invalidate cache before reading buffer state
     invalidateSharedMemoryCache();
+
+    // A corrupt header would make us write outside the buffer - start it afresh.
+    if (!isDataFrameBufferValid())
+    {
+      resetDataFrameBuffer();
+    }
 
     // Check if buffer is full
     if (data_frame_buffer_sdram->count >= DATA_FRAME_BUFFER_SIZE)

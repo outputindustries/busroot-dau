@@ -142,7 +142,12 @@ Configuration can also be baked in at compile time with `-DSKIP_FLASH_CONFIG`, w
 
 ## Firmware version
 
-`FIRMWARE_VERSION` is injected at build time from the environment (see `platformio.ini` and the GitHub workflows — releases use the git tag, dev builds use `dev-<sha>`) and is included in every MQTT message as the `v` field. For local builds, set it yourself: `FIRMWARE_VERSION=dev-local pio run`.
+The firmware version is included in every MQTT message as the `v` field. `version.py` resolves it at build time:
+
+1. The `FIRMWARE_VERSION` env var, if set. The GitHub workflows set it — releases use the git tag, dev builds use `dev-<sha>` — and it always wins.
+2. Otherwise `custom_firmware_version` in `platformio.ini`, a `YYMMDD` date. **Bump it to the current date whenever you change the firmware**, so local builds report something meaningful.
+
+Don't add `-DFIRMWARE_VERSION` to `build_flags`: a literal there overrides both sources above.
 
 ## LED Status System
 
@@ -224,7 +229,7 @@ busroot-dau/
 
 ### Building
 ```bash
-FIRMWARE_VERSION=dev-local pio run   # Build both cores
+pio run                              # Build both cores
 pio run -e opta_m7                   # Build M7 only
 pio run -e opta_m4                   # Build M4 only
 ```

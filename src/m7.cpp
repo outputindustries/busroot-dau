@@ -139,15 +139,20 @@ void setEthernetMacAddress()
 
 float getModbusRegister(int id, int address)
 {
-  if (ModbusRTUClient.requestFrom(id, INPUT_REGISTERS, address, 2) == 0)
+  for (int attempt = 0; attempt < 2; attempt++)
   {
-    Serial.print("failed! ");
-    Serial.println(ModbusRTUClient.lastError());
+    // Drain noise bytes the floating idle line has fed the receiver since the
+    // last transaction, so they can't prefix the response and fail its CRC.
+    while (RS485.available())
+      RS485.read();
 
-    return -1;
-  }
-  else
-  {
+    if (ModbusRTUClient.requestFrom(id, INPUT_REGISTERS, address, 2) == 0)
+    {
+      Serial.print("failed! ");
+      Serial.println(ModbusRTUClient.lastError());
+      continue;
+    }
+
     uint16_t reg1 = ModbusRTUClient.read();
     uint16_t reg2 = ModbusRTUClient.read();
 
@@ -448,6 +453,10 @@ void setup()
   for (const auto timeout = millis() + 2500; !Serial && millis() < timeout; delay(250))
     ;
 
+  // Zero the shared buffer header before the M4 starts. After a power-on boot SRAM4
+  // holds random values, and reading them as head/tail/count crashes the M7.
+  resetDataFrameBuffer();
+
   // Boot M4 core after basic initialization
   bootM4();
 
@@ -566,6 +575,13 @@ void loop()
   // void receiveDataFromM4()
   // Invalidate cache before reading buffer to ensure we see fresh data
   invalidateSharedMemoryCache();
+
+  // A corrupt header would make us read outside the buffer - start it afresh.
+  if (!isDataFrameBufferValid())
+  {
+    Serial.println("Shared buffer header invalid - resetting buffer");
+    resetDataFrameBuffer();
+  }
 
   // Check if there are frames available in the buffer
   if (data_frame_buffer_sdram->count > 0)

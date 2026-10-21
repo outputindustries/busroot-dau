@@ -65,4 +65,23 @@ inline void invalidateSharedMemoryCache()
   __ISB(); // Instruction Synchronization Barrier
 }
 
+// True if head/tail/count are in range. SRAM4 holds random values after a
+// power-on boot, and an out-of-range index reads or writes outside the buffer.
+// Call after invalidateSharedMemoryCache().
+inline bool isDataFrameBufferValid()
+{
+  return data_frame_buffer_sdram->head < DATA_FRAME_BUFFER_SIZE &&
+         data_frame_buffer_sdram->tail < DATA_FRAME_BUFFER_SIZE &&
+         data_frame_buffer_sdram->count <= DATA_FRAME_BUFFER_SIZE;
+}
+
+// Empty the buffer and make the header visible to the other core.
+inline void resetDataFrameBuffer()
+{
+  data_frame_buffer_sdram->head = 0;
+  data_frame_buffer_sdram->tail = 0;
+  data_frame_buffer_sdram->count = 0;
+  cleanSharedMemoryCache();
+}
+
 #endif // DATA_FRAME_H
