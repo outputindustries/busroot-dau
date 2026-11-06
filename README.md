@@ -55,6 +55,8 @@ Anyone looking for a reliable and straightforward way to capture data points fro
 
 Inputs 7 and 8 are analog-only — they do not pulse-count. Inputs 1–6 do not read analog.
 
+**Minimum high time (optional):** inputs 1–6 can ignore pulses that are too short. When built with `-DMIN_HIGH_TIME_MS=<ms>` (see the commented line under `[env:opta_m4]` in `platformio.ini`), a falling edge is only counted if the input stayed high for at least that long. This is useful when a sensor sees brief, flickering detections, such as a moving mesh conveyor, that should be ignored in favour of the object sitting on it. The default is `0` (every debounced pulse counts). The state fields (`s1`–`s6`) always report the raw input state.
+
 In addition, the device can act as a **Modbus RTU master over RS485** to read external meters: per-phase voltage and current, power factor, and kWh, each at a configurable register address. See [MQTT Message Format](#mqtt-message-format) for the two supported register-decode styles.
 
 ## How it works — dual-core operation
@@ -265,6 +267,7 @@ pio run -t clean
 
 ### Missing input pulses
 - Check debounce delay (50ms default)
+- Check `MIN_HIGH_TIME_MS` isn't longer than your pulses (default 0)
 - Verify input wiring
 - Monitor serial output
 - Reduce send interval if needed
@@ -280,6 +283,7 @@ pio run -t clean
 - **Framework**: Arduino (Mbed OS)
 - **Send Interval**: 5 seconds (configurable)
 - **Debounce Delay**: 50ms (configurable)
+- **Minimum High Time**: 0ms (compile-time, `MIN_HIGH_TIME_MS`)
 - **Buffer Capacity**: 1000 frames (83 minutes @ 5s intervals)
 - **Serial Baud**: 19200
 - **Modbus Baud**: 19200 (8N1)

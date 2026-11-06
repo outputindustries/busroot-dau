@@ -7,6 +7,13 @@ unsigned long previousMillis = 0;
 
 unsigned long debounceDelay = 50;
 
+// Minimum time (ms) an input 1-6 must stay high for its falling edge to be counted.
+// Rejects short detections, e.g. a sensor seeing a moving mesh rather than the object on it.
+// 0 = count every debounced pulse. Override with -DMIN_HIGH_TIME_MS=<ms>.
+#ifndef MIN_HIGH_TIME_MS
+#define MIN_HIGH_TIME_MS 0
+#endif
+
 unsigned int counter_BTN_USER = 0;
 unsigned int currentState_BTN_USER = 0;
 unsigned int lastState_BTN_USER = 0;
@@ -17,6 +24,7 @@ unsigned int counters[] = {0, 0, 0, 0, 0, 0, 0, 0};
 unsigned int currentStates[] = {0, 0, 0, 0, 0, 0, 0, 0};
 unsigned int lastStates[] = {0, 0, 0, 0, 0, 0, 0, 0};
 unsigned long lastDebounceTimes[] = {0, 0, 0, 0, 0, 0, 0, 0};
+unsigned long riseTimes[] = {0, 0, 0, 0, 0, 0}; // When each input 1-6 last went high
 int analogs[] = {0, 0};
 
 void setup()
@@ -72,8 +80,12 @@ void readInputs()
       lastDebounceTimes[i] = currentMillis; // If state has changed since last read, reset debounce time.
     if (currentMillis - lastDebounceTimes[i] > debounceDelay && currentStates[i] != state)
     { // If time since last change (debounce time) exceeds the set debounce delay, proceed...
-      if (currentStates[i] > state)
-      { // Only count falling edges.
+      if (currentStates[i] < state)
+      { // Rising edge: remember when the input actually went high.
+        riseTimes[i] = lastDebounceTimes[i];
+      }
+      else if (lastDebounceTimes[i] - riseTimes[i] >= MIN_HIGH_TIME_MS)
+      { // Falling edge: only count if the input was high for long enough.
         counters[i]++;
       }
       currentStates[i] = state;
