@@ -3,6 +3,18 @@
 
 #include <Arduino.h>
 
+// How often the M4 core writes a frame to the buffer (ms).
+#define SEND_INTERVAL_MS 5000
+
+// Trace mode (commissioning only): build with -DTRACE_INTERVAL_MS=<ms> in the shared
+// [env] section of platformio.ini, so both cores agree on the frame layout. The M4
+// samples the raw input states every TRACE_INTERVAL_MS and each frame carries them.
+#ifdef TRACE_INTERVAL_MS
+#define TRACE_MAX_SAMPLES (SEND_INTERVAL_MS / TRACE_INTERVAL_MS + 1) // +1 absorbs timing jitter
+static_assert(TRACE_INTERVAL_MS >= 20 && TRACE_MAX_SAMPLES <= 64, "TRACE_INTERVAL_MS out of range");
+#define TRACE_BIT_BTN_USER 6 // Bits 0-5 = inputs 1-6, bit 6 = user button
+#endif
+
 struct DATA_FRAME_SEND
 {
   unsigned int userButtonCount;
@@ -21,12 +33,21 @@ struct DATA_FRAME_SEND
   unsigned int input6State;
   unsigned int input7Analog;
   unsigned int input8Analog;
+#ifdef TRACE_INTERVAL_MS
+  unsigned int traceCount;          // Number of valid samples in trace[]
+  uint8_t trace[TRACE_MAX_SAMPLES]; // One packed sample per TRACE_INTERVAL_MS (see TRACE_BIT_BTN_USER)
+#endif
 };
 
 // Circular buffer configuration
 // Max frames to fill ~64KB AHB SRAM4: (65536 - 12 bytes overhead) / 64 bytes per frame ≈ 1024
-// Using 1000 for safety margin = ~64KB total = 83 minutes @ 5s intervals
+// Using 1000 for safety margin = ~64KB total = 83 minutes @ 5s intervals.
+// Trace frames are larger (~96 bytes at 200 ms), so fewer fit: 650 = ~54 minutes.
+#ifdef TRACE_INTERVAL_MS
+#define DATA_FRAME_BUFFER_SIZE 650
+#else
 #define DATA_FRAME_BUFFER_SIZE 1000  // Number of frames that can be buffered
+#endif
 
 struct DATA_FRAME_BUFFER
 {
@@ -35,6 +56,8 @@ struct DATA_FRAME_BUFFER
   volatile unsigned int count; // Number of frames in buffer
   DATA_FRAME_SEND frames[DATA_FRAME_BUFFER_SIZE];
 };
+
+static_assert(sizeof(DATA_FRAME_BUFFER) <= 65536, "Frame buffer exceeds the 64KB AHB SRAM4");
 
 extern const uint32_t SDRAM_START_ADDRESS_4; // USING THE AHB SRAM4 DOMAIN SPACE
 extern const uint32_t SDRAM_ALLOCATION_PROTECTED_BUFFER_SIZE; // for my own use, malloc will allocate after the size of this variable, increase if we need more than 10KB for core to core variables

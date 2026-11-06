@@ -2,7 +2,7 @@
 #include "data_frame.h"
 #include "Arduino.h"
 
-unsigned long sendInterval = 5000;
+unsigned long sendInterval = SEND_INTERVAL_MS;
 unsigned long previousMillis = 0;
 
 unsigned long debounceDelay = 50;
@@ -27,6 +27,40 @@ unsigned long lastDebounceTimes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 unsigned long riseTimes[] = {0, 0, 0, 0, 0, 0}; // When each input 1-6 last went high
 int analogs[] = {0, 0};
 
+#ifdef TRACE_INTERVAL_MS
+// Raw input samples for the current frame, packed as bits (see TRACE_BIT_BTN_USER).
+uint8_t traceSamples[TRACE_MAX_SAMPLES] = {0};
+unsigned int traceCount = 0;
+unsigned long lastTraceMillis = 0;
+
+void sampleTrace(unsigned long currentMillis)
+{
+  if (currentMillis - lastTraceMillis < TRACE_INTERVAL_MS)
+    return;
+
+  // Advance by one interval to stay drift-free; resync if we fell far behind.
+  if (currentMillis - lastTraceMillis >= 2 * TRACE_INTERVAL_MS)
+    lastTraceMillis = currentMillis;
+  else
+    lastTraceMillis += TRACE_INTERVAL_MS;
+
+  if (traceCount >= TRACE_MAX_SAMPLES)
+    return;
+
+  // Raw (undebounced) states, so commissioning sees the flicker that debounce hides.
+  uint8_t sample = 0;
+  for (int i = 0; i < 6; i++)
+  {
+    if (lastStates[i])
+      sample |= 1 << i;
+  }
+  if (lastState_BTN_USER)
+    sample |= 1 << TRACE_BIT_BTN_USER;
+
+  traceSamples[traceCount++] = sample;
+}
+#endif
+
 void setup()
 {
   SDRAM.begin(SDRAM_START_ADDRESS_4);
@@ -45,6 +79,10 @@ void setup()
   // This is to allow M7 to have started. Otherwise the buffer is filled with multiple messages.
   // Reduced from 20s to 10s. The M7 core owns the watchdog and keeps it fed while we wait here.
   delay(10000);
+
+#ifdef TRACE_INTERVAL_MS
+  lastTraceMillis = millis();
+#endif
 }
 
 void readInputs()
@@ -112,6 +150,10 @@ void loop()
 
   readInputs();
 
+#ifdef TRACE_INTERVAL_MS
+  sampleTrace(currentMillis);
+#endif
+
   if (currentMillis - previousMillis >= sendInterval)
   {
     // Invalidate cache before reading buffer state
@@ -151,6 +193,14 @@ void loop()
     data_frame_buffer_sdram->frames[writeIndex].input6State = lastStates[5];
     data_frame_buffer_sdram->frames[writeIndex].input7Analog = analogs[0];
     data_frame_buffer_sdram->frames[writeIndex].input8Analog = analogs[1];
+#ifdef TRACE_INTERVAL_MS
+    data_frame_buffer_sdram->frames[writeIndex].traceCount = traceCount;
+    for (unsigned int s = 0; s < traceCount; s++)
+    {
+      data_frame_buffer_sdram->frames[writeIndex].trace[s] = traceSamples[s];
+    }
+    traceCount = 0;
+#endif
 
     // Move head forward and increment count
     data_frame_buffer_sdram->head = (data_frame_buffer_sdram->head + 1) % DATA_FRAME_BUFFER_SIZE;

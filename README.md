@@ -133,6 +133,26 @@ An optional `mqttTopicPrefix` is prepended when set (`{prefix}/busroot/v1/dau/{d
 - `0` — 32-bit IEEE-754 float, most-significant word first (e.g. RS-Pro meters).
 - `1` — 32-bit integer, word-swapped (least-significant word first; e.g. Carlo Gavazzi meters).
 
+### Trace mode (commissioning)
+
+For commissioning sensors (for example, tuning a sensor's switch point or `MIN_HIGH_TIME_MS`), a trace build adds the raw state of each input, sampled every `TRACE_INTERVAL_MS`, to every payload. At 200 ms, each 5 s frame carries about 25 samples per input:
+
+```json
+{
+  "v": "261106",
+  ...
+  "t1": [0,0,1,1,1,1,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0], // Input 1 samples, oldest first
+  "t2": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], // ... t3–t6 likewise
+  "tb": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]  // User button samples
+}
+```
+
+Enable it by uncommenting `build_flags = -DTRACE_INTERVAL_MS=200` in the shared `[env]` section of `platformio.ini`. It must be set there, not per environment, because both cores need the same frame layout. Then rebuild and upload **both** cores.
+
+- Samples are **raw**, before debouncing and before `MIN_HIGH_TIME_MS` filtering, so they show the flicker that the counts ignore. Counts (`c1`–`c6`) behave exactly as in a normal build.
+- The larger frames reduce the buffer to **650 frames (~54 minutes)**.
+- This is intended for commissioning only. Flash the normal build afterwards.
+
 ## Configuration
 
 Configuration can be applied from the [web programmer](https://outputindustries.github.io/busroot-dau/) or **over serial**, and is persisted to **flash** — which is what lets one generic binary serve every device. On boot the device presents a serial config editor (press <kbd>Enter</kbd> within the prompt window) that walks through the communication mode, device ID, WiFi credentials, MQTT connection, Modbus settings, and the Modbus register addresses. Entering a single space resets a field to its compiled-in default.

@@ -468,6 +468,34 @@ void setup()
 #endif
 }
 
+#ifdef TRACE_INTERVAL_MS
+// Append the trace samples to a JSON object in msg as one array per input:
+// ,"t1":[0,1,...],...,"t6":[...],"tb":[...]}  — replaces the closing brace.
+void appendTrace(char *msg, size_t size, const DATA_FRAME_SEND &frame)
+{
+  size_t len = strlen(msg);
+  if (len == 0 || msg[len - 1] != '}')
+    return;
+  len--; // Overwrite the closing brace.
+
+  static const char *keys[] = {"t1", "t2", "t3", "t4", "t5", "t6", "tb"};
+  static const int bits[] = {0, 1, 2, 3, 4, 5, TRACE_BIT_BTN_USER};
+
+  for (int k = 0; k < 7 && len < size; k++)
+  {
+    len += snprintf(msg + len, size - len, ",\"%s\":[", keys[k]);
+    for (unsigned int s = 0; s < frame.traceCount && len < size; s++)
+    {
+      len += snprintf(msg + len, size - len, s == 0 ? "%u" : ",%u", (frame.trace[s] >> bits[k]) & 1);
+    }
+    if (len < size)
+      len += snprintf(msg + len, size - len, "]");
+  }
+  if (len < size)
+    snprintf(msg + len, size - len, "}");
+}
+#endif
+
 bool attemptPublish(const char *topic, const char *message)
 {
   if ((communicationMode == WIFI || communicationMode == ETHERNET) && mqttClient)
@@ -609,6 +637,13 @@ void loop()
     dataFromM4.input6State = data_frame_buffer_sdram->frames[readIndex].input6State;
     dataFromM4.input7Analog = data_frame_buffer_sdram->frames[readIndex].input7Analog;
     dataFromM4.input8Analog = data_frame_buffer_sdram->frames[readIndex].input8Analog;
+#ifdef TRACE_INTERVAL_MS
+    dataFromM4.traceCount = min((unsigned int)data_frame_buffer_sdram->frames[readIndex].traceCount, (unsigned int)TRACE_MAX_SAMPLES);
+    for (unsigned int s = 0; s < dataFromM4.traceCount; s++)
+    {
+      dataFromM4.trace[s] = data_frame_buffer_sdram->frames[readIndex].trace[s];
+    }
+#endif
 
     // Move tail forward and decrement count
     data_frame_buffer_sdram->tail = (data_frame_buffer_sdram->tail + 1) % DATA_FRAME_BUFFER_SIZE;
@@ -712,6 +747,10 @@ void loop()
 
       mbed::Watchdog::get_instance().kick();
     }
+
+#ifdef TRACE_INTERVAL_MS
+    appendTrace(message, sizeof(message), dataFromM4);
+#endif
 
     // Remove unnecessary trailing zeros.
     String messageString = String(message);
